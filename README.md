@@ -8,7 +8,7 @@ The robot is constructed from 3mm plywood, chosen for its balance of strength, r
 
 ![FalconEye Assembled](./images/image.png)
 ![FalconEye Exploded View](./images/image2.png)
-![FalconEye Transparent View](./images/image2.png)
+![FalconEye Transparent View](./images/image3.png)
 
 ## Vision System
 

@@ -1,6 +1,6 @@
 #include <Wire.h>
 #include "Adafruit_TCS34725.h"
-
+#include"uart_comand.h"
 #include <Arduino.h>
 #include "Adafruit_VL53L0X.h"
 
@@ -37,9 +37,10 @@ void vzdalenost()
        Serial.println("Nothing in range! ");
      }
      delay(100); 
-   }
+}
    
 bool cervena(){
+  // here will be the color value -> red = 1, blue = 0
   static const uint8_t TCS_SDA_pin = 21;
   static const uint8_t TCS_SCL_pin = 22;
   pinMode(TCS_SDA_pin, PULLUP);
@@ -55,10 +56,9 @@ bool cervena(){
   if (red_avg > green_avg && red_avg > blue_avg && red_avg > 100)
   {
     printf("RED\n");
-    
     return true;
   }
-  else {
+  if (blue_avg > green_avg && blue_avg > red_avg && blue_avg > 100){
     return false;
   }
 }
@@ -92,14 +92,16 @@ void setup()
 
   writeRegister(VL53L0X_DEFAULT_ADDR, I2C_SLAVE_DEVICE_ADDRESS, VL53L0X_NEW_ADDR);
   delay(200);
-  // 2️⃣ Po změně adresy můžeš pokračovat komunikací na nové adrese
+  
   // Inicializace senzoru na nové adrese
   if (!lox.begin(VL53L0X_NEW_ADDR)) {
       Serial.println("Chyba: Senzor VL53L0X nebyl nalezen!");
       while (1);
   }
-  Serial.println("Senzor VL53L0X úspěšně inicializován.");
+  Serial.println("Senzor VL53L0X uspesne inicializovan.");
   tcs.begin(0x29);
+
+  uart_set_up();
 
   while(true)
   {
@@ -107,6 +109,13 @@ void setup()
     cervena();
     Serial.println("*****************************************");
     vzdalenost();
+    //delay(200);
+    Serial.println("##########################################");
+    for(int i =0 ;i<100;i++) get_uart_data();  // získej výsledky
+
+
+    // Pro jistotu vypiš alespoň jeden výsledek manuálně, i mimo funkci
+    
   }
 }
 void loop()

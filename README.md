@@ -1,14 +1,14 @@
 # FalconEye
 
-FalconEye is a mobile robot designed for the **Puck Collect** competition. Its primary task is to use a camera to detect pucks on the field and transport them to a designated area.
+FalconEye is a mobile robot designed for the **Puck Collect** competition - Prague robotics day 2025. Its primary task is to use a camera to detect pucks on the field and transport them to a designated area.
 
 ## Overview
 
 The robot is constructed from 3mm plywood, chosen for its balance of strength, rigidity, and light weight. The chassis was designed with high modularity and robustness in mind, while still maintaining simple assembly and serviceability. The structure is optimized for stability, durability, and tactical efficiency.
 
-![FalconEye Assembled](./image.png)
-![FalconEye Exploded View](./image2.png)
-![FalconEye Transparent View](./b1218599-e631-44f6-856e-cc1a615dc159.png)
+![FalconEye Assembled](./images/image.png)
+![FalconEye Exploded View](./images/image2.png)
+![FalconEye Transparent View](./images/image2.png)
 
 ## Vision System
 
@@ -57,12 +57,12 @@ The battery pack includes two 18650 cells integrated on a custom PCB, connected 
 
 ## Project Highlights
 
-- 💡 Custom-designed PCBs (RBCX, NXP interface)
+- 💡 Custom-designed PCBs (RBCX)
 - 🧠 Real-time object detection via TensorFlow
 - 🎯 Accurate motion via PID motor control
 - 🔧 Modular and sturdy plywood construction
-- 📐 Designed and built by **Robotárna Brno** team for competition use
 
----
+## License
 
-This project is developed and maintained for educational and competition purposes.
+This project is licensed under the MIT License – see the [LICENSE](./LICENSE) file for details.
+

@@ -41,48 +41,56 @@ size_t bytesReceived = 0;  // Počet přijatých bajtů
 
 //získá data posílaná přes uart z nxp
 //výstup: [x1, y1, x2, y2, score, color] -> souřadnice protilehlých rohů bouding boxu, score = procentualní přesnost *10, barva najitého objektu
-UARTResult_t get_uart_data()
-{
-UARTResult_t empty_packet ={0,0,0,{0}};
-UARTResult_t receivedPacket;
-// Pokud máme nějaká data na UART2
-if (Serial2.available()) {
-    // Načteme jeden byte do bufferu
-    struct_bytes[bytesReceived] = Serial2.read();
-    bytesReceived++;
+// UARTResult_t get_uart_data()
+// {
+// // array s výsledky
+// UARTResult_t receivedPacket;
+
+// // Pokud máme nějaká data na UART2
+// if (Serial2.available()) {
+//     // Načteme jeden byte do bufferu
+//     struct_bytes[bytesReceived] = Serial2.read();
+//     bytesReceived++;
     
-    // Pokud máme celou strukturu
-    if (bytesReceived >= length_of_struct) {
-        // Deserializace přijatých dat na strukturu UARTResult_t
-       //! UARTResult_t receivedPacket;
-        memcpy(&receivedPacket, struct_bytes, sizeof(UARTResult_t));
-            // Vypíšeme přijaté hodnoty na hlavní sériový port
-            // Serial.printf("Received UARTResult_t:\n");
-            // Serial.printf("Header: %d\n", receivedPacket.header);
-            // Serial.printf("Length: %d\n", receivedPacket.leng);
-            // Serial.printf("Suma: %d\n", receivedPacket.suma);
-            // // Vypíšeme výsledky
-            // for (int i = 0; i < MAX_OD_BOX_CNT; i++) {
-            //     Serial.printf("Result %d: (x1: %d, y1: %d, x2: %d, y2: %d, score10: %d, color: %d)\n",
-            //         i,
-            //         receivedPacket.results_array[i].x1,
-            //         receivedPacket.results_array[i].y1,
-            //         receivedPacket.results_array[i].x2,
-            //         receivedPacket.results_array[i].y2,
-            //         receivedPacket.results_array[i].score10,
-            //         receivedPacket.results_array[i].color);
-            //     }
-            // Resetujeme byte count pro příjem dalších dat
-            bytesReceived = 0;
-            return receivedPacket;
+//     // Pokud máme celou strukturu
+//     if (bytesReceived >= length_of_struct) {
+//         // Deserializace přijatých dat na strukturu UARTResult_t
 
-        }
+//         memcpy(&receivedPacket, struct_bytes, sizeof(UARTResult_t));
+//             // Vypíšeme přijaté hodnoty na hlavní sériový port
+//             Serial.printf("Received UARTResult_t:\n");
+//             Serial.printf("Header: %d\n", receivedPacket.header);
+//             Serial.printf("Length: %d\n", receivedPacket.leng);
+//             Serial.printf("Suma: %d\n", receivedPacket.suma);
+            
+//             // Vypíšeme výsledky
+//             for (int i = 0; i < MAX_OD_BOX_CNT; i++) {
+//                 Serial.printf("Result %d: (x1: %d, y1: %d, x2: %d, y2: %d, score10: %d, color: %d)\n",
+//                               i,
+//                               receivedPacket.results_array[i].x1,
+//                               receivedPacket.results_array[i].y1,
+//                               receivedPacket.results_array[i].x2,
+//                               receivedPacket.results_array[i].y2,
+//                               receivedPacket.results_array[i].score10,
+//                             receivedPacket.results_array[i].color);
+//             }
+//             // Resetujeme byte count pro příjem dalších dat
+//             bytesReceived = 0;
+//         }
+//     }
+//     return receivedPacket;
+// }
+bool get_uart_data(UARTResult_t &output) {
+    while (Serial2.available() && bytesReceived < length_of_struct) {
+        struct_bytes[bytesReceived++] = Serial2.read();
     }
-    return empty_packet;
+    if (bytesReceived >= length_of_struct) {
+        memcpy(&output, struct_bytes, sizeof(UARTResult_t));
+        // Debug print
+        Serial.printf("Header: %d, Length: %d, Sum: %d\n",
+                      output.header, output.leng, output.suma);
+        bytesReceived = 0;  // připraven na další packet
+        return true;
+    }
+    return false;
 }
-
-
-
-
-
-

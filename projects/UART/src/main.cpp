@@ -86,17 +86,34 @@ void setup(){
     uart_set_up();
 
 }
-void loop(){
-    UARTResult_t vystup = get_uart_data();
-    //if(vystup.leng>0) 
-    //{
-        for(int i =0; i<MAX_OD_BOX_CNT;i++)
-        {
-            Serial.printf("x1: %d, x2: %d\n",
-            vystup.results_array[i].x1,
-            vystup.results_array[i].x2);
-        }
-    //}
-    delay(100);
+// void loop(){
+//     UARTResult_t vystup = get_uart_data();
+//     if(vystup.leng>0) 
+//     {
+//         for(int i =0; i<MAX_OD_BOX_CNT;i++)
+//         {
+//             Serial.printf("x1: %d, x2: %d\n",
+//             vystup.results_array[i].x1,
+//             vystup.results_array[i].x2);
+//         }
+//     }
+//     //get_uart_data();
+//     delay(100);
     
+// }
+void loop() {
+    UARTResult_t vstup;
+    if (get_uart_data(vstup)) {
+        // Mám teď celý packet, můžu pracovat
+        for (int i = 0; i < MAX_OD_BOX_CNT; i++) {
+            if(vstup.results_array[i].score10>900)
+            {
+                Serial.printf("x1: %d, x2: %d, score: %d\n",
+                            vstup.results_array[i].x1,
+                            vstup.results_array[i].x2,
+                            vstup.results_array[i].score10);
+            }
+        }
+    }
+    //delay(100);
 }

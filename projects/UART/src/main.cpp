@@ -84,7 +84,19 @@
 
 void setup(){
     uart_set_up();
+
 }
 void loop(){
-    get_uart_data();
+    UARTResult_t vystup = get_uart_data();
+    //if(vystup.leng>0) 
+    //{
+        for(int i =0; i<MAX_OD_BOX_CNT;i++)
+        {
+            Serial.printf("x1: %d, x2: %d\n",
+            vystup.results_array[i].x1,
+            vystup.results_array[i].x2);
+        }
+    //}
+    delay(100);
+    
 }

@@ -102,6 +102,7 @@ void setup()
   tcs.begin(0x29);
 
   uart_set_up();
+  UARTResult_t vstup_uart;
 
   while(true)
   {
@@ -111,7 +112,18 @@ void setup()
     vzdalenost();
     //delay(200);
     Serial.println("##########################################");
-    for(int i =0 ;i<100;i++) get_uart_data();  // získej výsledky
+    if (get_uart_data(vstup_uart)) {
+        // Mám teď celý packet, můžu pracovat
+        for (int i = 0; i < MAX_OD_BOX_CNT; i++) {
+            if(vstup_uart.results_array[i].score10>900)
+            {
+                Serial.printf("x1: %d, x2: %d, score: %d\n",
+                            vstup_uart.results_array[i].x1,
+                            vstup_uart.results_array[i].x2,
+                            vstup_uart.results_array[i].score10);
+            }
+        }
+    }
 
 
     // Pro jistotu vypiš alespoň jeden výsledek manuálně, i mimo funkci

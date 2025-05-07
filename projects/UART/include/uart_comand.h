@@ -80,6 +80,8 @@ size_t bytesReceived = 0;  // Počet přijatých bajtů
 //     }
 //     return receivedPacket;
 // }
+
+// vezme proměnou a uloží do ní strukturu UARTResult_t + vrátí true jestli je celý
 bool get_uart_data(UARTResult_t &output) {
     while (Serial2.available() && bytesReceived < length_of_struct) {
         struct_bytes[bytesReceived++] = Serial2.read();

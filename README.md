@@ -7,8 +7,11 @@ FalconEye is a mobile robot designed for the **Puck Collect** competition - Prag
 The robot is constructed from 3mm plywood, chosen for its balance of strength, rigidity, and light weight. The chassis was designed with high modularity and robustness in mind, while still maintaining simple assembly and serviceability. The structure is optimized for stability, durability, and tactical efficiency.
 
 ![FalconEye Assembled](./images/image.png)
-![FalconEye Exploded View](./images/image2.png)
-![FalconEye Transparent View](./images/image3.png)
+![FalconEye Transparent View](./images/image2.png)
+![FalconEye Back View](./images/image3.png)
+![UART connection on the side of RBCX](./images/UART_RBCX.jpg)
+![UART connection on the side of NXP board](./images/UART_NXP.jpg)
+
 
 ## Vision System
 

@@ -103,7 +103,7 @@ void setup()
 
   uart_set_up();
   UARTResult_t vstup_uart;
-
+  int x =0;
   while(true)
   {
 
@@ -112,18 +112,24 @@ void setup()
     vzdalenost();
     //delay(200);
     Serial.println("##########################################");
-    if (get_uart_data(vstup_uart)) {
-        // Mám teď celý packet, můžu pracovat
-        for (int i = 0; i < MAX_OD_BOX_CNT; i++) {
-            if(vstup_uart.results_array[i].score10>900)
-            {
-                Serial.printf("x1: %d, x2: %d, score: %d\n",
-                            vstup_uart.results_array[i].x1,
-                            vstup_uart.results_array[i].x2,
-                            vstup_uart.results_array[i].score10);
-            }
-        }
+    while(x<1)
+    {
+      if (get_uart_data(vstup_uart)) {
+          // Mám teď celý packet, můžu pracovat
+          for (int i = 0; i < MAX_OD_BOX_CNT; i++) {
+              if(vstup_uart.results_array[i].score10>900)
+              {
+                  Serial.printf("x1: %d, x2: %d, score: %d\n",
+                              vstup_uart.results_array[i].x1,
+                              vstup_uart.results_array[i].x2,
+                              vstup_uart.results_array[i].score10);
+                  x =1;
+              }
+          }
+      }
     }
+    x=0;
+    Serial.println("##########################################");
 
 
     // Pro jistotu vypiš alespoň jeden výsledek manuálně, i mimo funkci

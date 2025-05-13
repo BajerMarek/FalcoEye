@@ -106,8 +106,8 @@ void loop() {
     if (get_uart_data(vstup)) {
         // Mám teď celý packet, můžu pracovat
         for (int i = 0; i < MAX_OD_BOX_CNT; i++) {
-            //if(vstup.results_array[i].score10>900)
-            //{
+            // if(vstup.results_array[i].score10>900)
+            // {
                 Serial.printf("x1: %d, x2: %d, score: %d, color: %d\n",
                             vstup.results_array[i].x1,
                             vstup.results_array[i].x2,

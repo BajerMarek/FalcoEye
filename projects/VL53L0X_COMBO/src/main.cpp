@@ -2,7 +2,7 @@
 #include "Adafruit_VL53L0X.h"
 #include "Adafruit_TCS34725.h"
 #include "i2c_tools.h"
-//Adafruit_VL53L0X lox = Adafruit_VL53L0X();
+
 
 #define I2C_SLAVE_DEVICE_ADDRESS 0x8A  // Registr pro změnu adresy
 #define VL53L0X_DEFAULT_ADDR 0x29  // Výchozí adresa senzoru
@@ -13,29 +13,31 @@
 
 Adafruit_VL53L0X sensor1 = Adafruit_VL53L0X();
 Adafruit_VL53L0X sensor2 = Adafruit_VL53L0X();
-//Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_614MS, TCS34725_GAIN_1X);
+Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_1X);
+static const uint8_t TCS_SDA_pin = 14;
+static const uint8_t TCS_SCL_pin = 26;
 
-// bool cervena(){
-//   // here will be the color value -> red = 1, blue = 0
-//   static const uint8_t TCS_SDA_pin = 21;
-//   static const uint8_t TCS_SCL_pin = 22;
-//   Wire1.begin(TCS_SDA_pin, TCS_SCL_pin, 100000);
-//   float r, g, b;
-//   tcs.getRGB(&r, &g, &b);
-//   float red_avg = r;
-//   float green_avg = g;
-//   float blue_avg = b;
-//   printf("red: %f, green: %f, blue: %f\n", red_avg, green_avg, blue_avg);
-//   delay(10);
-//   if (red_avg > green_avg && red_avg > blue_avg && red_avg > 100)
-//   {
-//     printf("RED\n");
-//     return true;
-//   }
-//   if (blue_avg > green_avg && blue_avg > red_avg && blue_avg > 100){
-//     return false;
-//   }
-// }
+
+bool cervena(){
+  // here will be the color value -> red = 1, blue = 0
+
+  //Wire.begin(TCS_SDA_pin, TCS_SCL_pin, 100000);
+  float r, g, b;
+  tcs.getRGB(&r, &g, &b);
+  float red_avg = r;
+  float green_avg = g;
+  float blue_avg = b;
+  printf("red: %f, green: %f, blue: %f\n", red_avg, green_avg, blue_avg);
+  delay(10);
+  if (red_avg > green_avg && red_avg > blue_avg && red_avg > 100)
+  {
+    printf("RED\n");
+    return true;
+  }
+  if (blue_avg > green_avg && blue_avg > red_avg && blue_avg > 100){
+    return false;
+  }
+}
 
 void setup() {
     
@@ -44,7 +46,7 @@ void setup() {
   while (! Serial) {
     delay(1);
   }
-  
+
   Wire.begin(21, 22);
   // delay(10);
   // Serial.println("Wire (I2C) inicializováno na SDA=21, SCL=22");
@@ -86,27 +88,25 @@ void setup() {
   sensor1.setAddress(0x30);
 
     Serial.println("############# zacina inicializace #############");
-    scan_i2c();
-  //sensor2.setAddress(0x31);
+    scan_i2c();    
 
-    // Serial.println("VL53L0X test");
-    // if (!lox.begin()) {
-    //     Serial.println(F("Failed to boot VL53L0X"));
-    //     while(1);
-    // }
+  pinMode(TCS_SDA_pin, PULLUP);
+  pinMode(TCS_SCL_pin, PULLUP);
 
-  // if (!tcs.begin()) {
-  //   Serial.println("Barevný senzor TCS34725 nebyl nalezen!");
-  //   while (1);
-  // } else {
-  //   Serial.println("TCS34725 detekován.");
-  // }
+  Wire1.begin(TCS_SDA_pin, TCS_SCL_pin, 100000); // pro predni senzor 
+  //tcs.begin(0x29,&Wire1);
+  if (!tcs.begin(0x29,&Wire1)) {
+    Serial.println("Barevný senzor TCS34725 nebyl nalezen!");
+    while (1);
+  } else {
+    Serial.println("TCS34725 detekován.");
+  }
 
 }
 
 void loop() {
    //scan_i2c();
- // cervena();
+  cervena();
   Serial.print("######################\n");
   VL53L0X_RangingMeasurementData_t m1, m2;
   

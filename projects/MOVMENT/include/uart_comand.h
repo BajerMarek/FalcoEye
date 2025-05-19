@@ -29,7 +29,7 @@ typedef struct tagUARTResult_t {
 //nastavý uart
 void uart_set_up(){
         Serial.begin(115200); // Hlavní UART pro komunikaci s PC
-        Serial2.begin(115200, SERIAL_8N1, 16,17); // Nastavení UART2
+        Serial1.begin(115200, SERIAL_8N1, 16,17); // Nastavení UART2
 
         Serial.println("Serial started, waiting for data...");
 }
@@ -40,8 +40,8 @@ size_t bytesReceived = 0;  // Počet přijatých bajtů
 
 // vezme proměnou a uloží do ní strukturu UARTResult_t + vrátí true jestli je celý
 bool get_uart_data(UARTResult_t &output) {
-    while (Serial2.available() && bytesReceived < length_of_struct) {
-        struct_bytes[bytesReceived++] = Serial2.read();
+    while (Serial1.available() && bytesReceived < length_of_struct) {
+        struct_bytes[bytesReceived++] = Serial1.read();
     }
     if (bytesReceived >= length_of_struct) {
         memcpy(&output, struct_bytes, sizeof(UARTResult_t));

@@ -48,6 +48,8 @@ uint16_t struct_bytes[length_of_struct];
 size_t bytesReceived = 0;  // Počet přijatých bajtů
 bool uart_recive(UARTResult_t &output)
 {
+    if (Serial1.available()<4) return false;
+
     uint8_t hlavicka = Serial1.read();
     if(hlavicka==255)
     {
@@ -62,17 +64,17 @@ bool uart_recive(UARTResult_t &output)
             output.leng = pocet_puku;
             output.suma = crc_suma;
     //! po sem vše funguje
-            if(Serial1.available())
-                for(int i =0; i<length_of_struct*pocet_puku;i++)
-                {
+if (Serial1.available() < 12 * pocet_puku)
+        return false;
 
-                        uint8_t low  = Serial1.read();   // LSB
-                        uint8_t high = Serial1.read();   // MSB
-                        struct_bytes[i] = slozit_bajty(low,high);
-                    //Serial.printf(" |  %d",struct_bytes[i]);
-                }
-                //Serial.print("\n");
-                memcpy(output.results_array, struct_bytes, sizeof(ODResult_t)*pocet_puku);
+    // Čtení přímo do output.results_array
+    uint16_t* p = (uint16_t*)output.results_array;
+    for (int i = 0; i < 6 * pocet_puku; i++)
+    {
+        uint8_t low = Serial1.read();
+        uint8_t high = Serial1.read();
+        p[i] = slozit_bajty(low, high);
+    }
                 //bytesReceived = 0;  // připraven na další packet
             return true;             
         }

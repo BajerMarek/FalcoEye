@@ -126,6 +126,7 @@ void pokus()
 }
 
 void setup() {
+    Serial.begin(115200); 
     printf("RB3204-RBCX\n");
     delay(50);
 
@@ -222,6 +223,23 @@ void setup() {
 }
 
 void loop() {
-    Serial.println("ping");
-    delay(1000);
+    //Serial.println("ping");
+    UARTResult_t vstup;
+   
+    if (uart_recive(vstup)) {
+        Serial.printf("Header: %d, Length: %d, Sum: %d\n",
+            vstup.header, vstup.leng, vstup.suma);
+        //Serial.print("####### datarecieved #######\n");
+        //Mám teď celý packet, můžu pracovat
+        for (int i = 0; i < vstup.leng; i++) {
+
+                Serial.printf("x1: %d, y1: %d, x2: %d, y2: %d score: %d, color: %d\n",
+                            vstup.results_array[i].x1,
+                            vstup.results_array[i].y1,
+                            vstup.results_array[i].x2,
+                            vstup.results_array[i].y2,
+                            vstup.results_array[i].score10,
+                            vstup.results_array[i].color);
+        }
+    }
 } // I don't need loop, because i'm using while(true) in setup (it doesn't require to create global variables)x

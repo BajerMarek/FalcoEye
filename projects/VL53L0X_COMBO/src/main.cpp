@@ -70,7 +70,7 @@ void setup() {
     }
     
     //scan_i2c();
-  writeRegister(0x30,0x8A,0x31);
+  //writeRegister(0x30,0x8A,0x31);
   sensor2.setAddress(0x31);
   scan_i2c();
 

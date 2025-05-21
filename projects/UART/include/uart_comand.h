@@ -22,6 +22,7 @@ typedef struct tagODResult_t {
     };
     int16_t score10;  // procentualní přesnost *10
     int16_t color;	// here will be the color value -> red = 1, blue = 0
+    int16_t name;   // number of the object to recognize it from others
 } ODResult_t;
 
 // Definice struktury UARTResult_t
@@ -64,12 +65,12 @@ bool uart_recive(UARTResult_t &output)
             output.leng = pocet_puku;
             output.suma = crc_suma;
     //! po sem vše funguje
-if (Serial1.available() < 12 * pocet_puku)
+if (Serial1.available() < sizeof(ODResult_t) * pocet_puku)      // počet bajtů pro příjmutí
         return false;
 
     // Čtení přímo do output.results_array
     uint16_t* p = (uint16_t*)output.results_array;
-    for (int i = 0; i < 6 * pocet_puku; i++)
+    for (int i = 0; i < (sizeof(ODResult_t)/2) * pocet_puku; i++)    // pocet int16_t bajtu v posílané struktuře
     {
         uint8_t low = Serial1.read();
         uint8_t high = Serial1.read();

@@ -22,6 +22,7 @@ typedef struct tagODResult_t {
     };
     int16_t score10;  // procentualní přesnost *10
     int16_t color;	// here will be the color value -> red = 1, blue = 0
+    int16_t name;   // number of the object to recognize it from others
 } ODResult_t;
 
 // Definice struktury UARTResult_t
@@ -33,7 +34,7 @@ typedef struct tagUARTResult_t {
 } UARTResult_t;
 
 void uart_set_up(){
-        // Hlavní UART pro komunikaci s PC
+        Serial.begin(115200); // Hlavní UART pro komunikaci s PC
         Serial1.begin(115200, SERIAL_8N1, 16,17); // Nastavení UART2
         while (!Serial) {
             ; // Čekáme na připojení sériového portu (pokud používáš USB)
@@ -48,6 +49,8 @@ uint16_t struct_bytes[length_of_struct];
 size_t bytesReceived = 0;  // Počet přijatých bajtů
 bool uart_recive(UARTResult_t &output)
 {
+    if (Serial1.available()<4) return false;
+
     uint8_t hlavicka = Serial1.read();
     if(hlavicka==255)
     {
@@ -62,17 +65,17 @@ bool uart_recive(UARTResult_t &output)
             output.leng = pocet_puku;
             output.suma = crc_suma;
     //! po sem vše funguje
-            if(Serial1.available())
-                for(int i =0; i<length_of_struct*pocet_puku;i++)
-                {
+if (Serial1.available() < sizeof(ODResult_t) * pocet_puku)      // počet bajtů pro příjmutí
+        return false;
 
-                        uint8_t low  = Serial1.read();   // LSB
-                        uint8_t high = Serial1.read();   // MSB
-                        struct_bytes[i] = slozit_bajty(low,high);
-                    //Serial.printf(" |  %d",struct_bytes[i]);
-                }
-                //Serial.print("\n");
-                memcpy(output.results_array, struct_bytes, sizeof(ODResult_t)*pocet_puku);
+    // Čtení přímo do output.results_array
+    uint16_t* p = (uint16_t*)output.results_array;
+    for (int i = 0; i < (sizeof(ODResult_t)/2) * pocet_puku; i++)    // pocet int16_t bajtu v posílané struktuře
+    {
+        uint8_t low = Serial1.read();
+        uint8_t high = Serial1.read();
+        p[i] = slozit_bajty(low, high);
+    }
                 //bytesReceived = 0;  // připraven na další packet
             return true;             
         }

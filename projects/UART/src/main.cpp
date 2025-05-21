@@ -44,13 +44,14 @@ void loop() {
         //Mám teď celý packet, můžu pracovat
         for (int i = 0; i < vstup.leng; i++) {
 
-                Serial.printf("x1: %d, y1: %d, x2: %d, y2: %d score: %d, color: %d\n",
+                Serial.printf("x1: %d, y1: %d, x2: %d, y2: %d score: %d, color: %d, name: %d\n",
                             vstup.results_array[i].x1,
                             vstup.results_array[i].y1,
                             vstup.results_array[i].x2,
                             vstup.results_array[i].y2,
                             vstup.results_array[i].score10,
-                            vstup.results_array[i].color);
+                            vstup.results_array[i].color,
+                        vstup.results_array[i].name);
         }
     }
     //delay(100);

@@ -24,10 +24,10 @@ bool cervena(){
   //Wire.begin(TCS_SDA_pin, TCS_SCL_pin, 100000);
   float r, g, b;
   tcs.getRGB(&r, &g, &b);
-  float red_avg = r;
-  float green_avg = g;
-  float blue_avg = b;
-  printf("red: %f, green: %f, blue: %f\n", red_avg, green_avg, blue_avg);
+  uint8_t red_avg = (int) r;
+  uint8_t green_avg = (int)  g;
+  uint8_t blue_avg = (int)  b;
+  printf("red: %i, green: %i, blue: %i\n", red_avg, green_avg, blue_avg);
   delay(10);
   if (red_avg > green_avg && red_avg > blue_avg && red_avg > 100)
   {

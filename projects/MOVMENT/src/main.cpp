@@ -24,7 +24,23 @@ Adafruit_VL53L0X sensor2 = Adafruit_VL53L0X();
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS34725_GAIN_1X);
 static const uint8_t TCS_SDA_pin = 14;
 static const uint8_t TCS_SCL_pin = 26;
-   
+
+// převod na metr encoder 4000 cca -> na jednom metru jsem naměřil 4000 encoderu
+typedef struct tagI2cout
+{
+    // barevný senzor
+
+    float r;
+    float g;
+    float b;
+
+    //laseový senzor
+
+    VL53L0X_RangingMeasurementData_t m1;
+    VL53L0X_RangingMeasurementData_t m2;
+
+}I2cout;
+
 void cervena(){
   // here will be the color value -> red = 1, blue = 0
   static const uint8_t TCS_SDA_pin = 21;
@@ -53,7 +69,7 @@ void cervena(){
 // std::mutex uart_mutex;  //! zamek pro komunikaci s vláknem -> pokud otevřeno poze jedno vlákno může komunikovat jinak nic
 //UARTResult_t latest_uart_data;  //? globalni proměná pro udládání dat z uartu
 UARTResult_t uart_data;
-
+I2cout senzor_data;
 // Funkce pro vlákno, které čte data z UARTu
 // void uart_thread_function() {
 //     while (true) {
@@ -67,6 +83,7 @@ UARTResult_t uart_data;
 //         std::this_thread::sleep_for(sd::chrono::milliseconds(10)); // Snížení zatížení CPU -> uspí vlákno na 10ms
 //     }
 // }
+
 void get_data(UARTResult_t vstup)
 {
     while(1)
@@ -76,8 +93,49 @@ void get_data(UARTResult_t vstup)
            memcpy(&uart_data,&vstup,sizeof (vstup));
 
        }
+       else
+       {
+        vstup.header = 0;
+       }
+
         delay(10);
     }
+}
+void get_senzor_data()
+{
+    while(1)
+    {
+    pinMode(TCS_SDA_pin, PULLUP);
+
+    pinMode(TCS_SCL_pin, PULLUP);
+
+    Wire1.begin(TCS_SDA_pin, TCS_SCL_pin, 100000); // pro predni senzor 
+
+
+    //tcs.begin(0x29,&Wire1);
+    if (!tcs.begin(0x29,&Wire1)) {
+        Serial.println("Barevný senzor TCS34725 nebyl nalezen!");
+        while (1);
+    } else {
+        //Serial.println("TCS34725 detekován.");
+    }
+
+
+    //  float r, g, b;
+    //  tcs.getRGB(&r, &g, &b);
+    //  senzor_data.r = r;
+    //  senzor_data.g = g;
+    //  senzor_data.b = b;
+    //  delay(10);
+    tcs.getRGB(&senzor_data.r,&senzor_data.g,&senzor_data.b);
+
+    // dalkové senzory
+     sensor1.rangingTest(&senzor_data.m1, false);
+     sensor2.rangingTest(&senzor_data.m2, false);
+     delay(10);
+
+    }
+
 }
 void rampa(int target, int a)
 {
@@ -144,17 +202,33 @@ void encoder(int cas)
 }
 
 void tocka(int smer, int cas)   // smer 1 -> pravo -1 -> levo
-{
+{    
+    int target = 20000;
+    int a = 2000;
+    auto& man = rb::Manager::get(); // vytvoří referenci na man class
+    for(int i = 0; i < target-1; i+=a)
+    {
+
+        man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
+
+        });
+        man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor& info) {
+
+        });
+        man.motor(rb::MotorId::M1).power(i*smer);
+        man.motor(rb::MotorId::M4).power(i*smer);
+        delay(10);
+        
+    }
     //m1 musí být -
     //int M1_pos, M4_pos, odhylaka, integral, last_odchylka =0;
     //int target = 10000;
     //int a = 500;
-    auto& man = rb::Manager::get(); // vytvoří referenci na man class
     
     //for(int i =0; i<cas;i+=50)
     //{
-        man.motor(rb::MotorId::M1).power(20000*smer);
-        man.motor(rb::MotorId::M4).power(20000*smer);// i míň se to kvedla 50 -55 je ok  bez derivace )poslední čast na 2,5 m 3cm odchylka
+        man.motor(rb::MotorId::M1).power(target*smer);
+        man.motor(rb::MotorId::M4).power(target*smer);// i míň se to kvedla 50 -55 je ok  bez derivace )poslední čast na 2,5 m 3cm odchylka
         //! získá encodery z motoru
         man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
             //M1_pos = -info.position();
@@ -167,6 +241,13 @@ void tocka(int smer, int cas)   // smer 1 -> pravo -1 -> levo
         delay(cas);
 
     //}
+    for(int i = 0; i > target; i-=a)
+    {
+        man.motor(rb::MotorId::M1).power(i*smer);
+        man.motor(rb::MotorId::M4).power(i*smer);
+        delay(10);
+        
+    }
     man.motor(rb::MotorId::M1).power(0);
     man.motor(rb::MotorId::M4).power(0);
 
@@ -178,6 +259,32 @@ void kupredu(int M1_dis, int M4_dis)
     man.motor(rb::MotorId::M4).power(16000);
 
 }
+
+void turn (int angle,int speed)
+{
+    Serial.begin(115200);
+    auto& man = rb::Manager::get(); // vytvoří referenci na man class
+    man.install(rb::ManagerInstallFlags::MAN_DISABLE_MOTOR_FAILSAFE); // install manager
+    micros(); // update overflow
+    delay(200);
+    int M1_pos =0;
+    int M4_pos =0;
+    while(1)
+    {
+        
+        man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
+        M1_pos = info.position();
+        });
+        man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor& info) {
+            M4_pos = -info.position();
+        });
+        Serial.printf("motor 1: %d | motor 4: %d \n", M1_pos,M4_pos);
+        micros();
+        delay(50);
+    }
+    //man.motor(rb::MotorId::M1).driveToValue()
+}
+
 void pokus()
 {
     for(int i = 0; i<3; i++) {
@@ -200,15 +307,25 @@ void pokus()
 }
 
 
+
 void setup() {
+    turn(1,1);
   Serial.begin(115200);
   while (! Serial) {
     delay(1);
   }
 
-  Wire.begin(21, 22);
-  // delay(10);
-  // Serial.println("Wire (I2C) inicializováno na SDA=21, SCL=22");
+  Wire1.begin(TCS_SDA_pin, TCS_SCL_pin, 100000); // pro predni senzor 
+  //tcs.begin(0x29,&Wire1);
+  if (!tcs.begin(0x29,&Wire1)) {
+      Serial.println("Barevný senzor TCS34725 nebyl nalezen!");
+      while (1);
+    } else {
+        Serial.println("TCS34725 detekován.");
+    }
+    // delay(10);
+    // Serial.println("Wire (I2C) inicializováno na SDA=21, SCL=22");
+    Wire.begin(21, 22);
 
     //Wire.begin(21, 22);  // SDA = GPIO21, SCL = GPIO22
     pinMode(XSHUT1, OUTPUT);
@@ -218,9 +335,22 @@ void setup() {
     digitalWrite(XSHUT2, LOW);
     delay(20);
 
+    digitalWrite(XSHUT1, HIGH);
+    delay(10);
+    scan_i2c();
+  
+    if (!sensor1.begin()) {
+      Serial.println("Nepodařilo se spustit senzor 1");
+      while (1);
+    }
+    scan_i2c();
+    sensor1.setAddress(0x30);
+   // writeRegister(0x29,0x8A,0x30);
+      scan_i2c();
+
     digitalWrite(XSHUT2, HIGH);
     delay(10);
-
+    scan_i2c();
   
     Serial.println("zacina inicializace #############");
     if (!sensor2.begin()) {
@@ -233,33 +363,16 @@ void setup() {
   sensor2.setAddress(0x31);
   scan_i2c();
 
-  digitalWrite(XSHUT1, HIGH);
-  delay(10);
-  scan_i2c();
-
-  if (!sensor1.begin()) {
-    Serial.println("Nepodařilo se spustit senzor 1");
-    while (1);
-  }
-  scan_i2c();
- // writeRegister(0x29,0x8A,0x30);
-    scan_i2c();
-  sensor1.setAddress(0x30);
 
     Serial.println("############# zacina inicializace #############");
-    scan_i2c();    
+    //scan_i2c();    
 
   pinMode(TCS_SDA_pin, PULLUP);
+
   pinMode(TCS_SCL_pin, PULLUP);
 
-  Wire1.begin(TCS_SDA_pin, TCS_SCL_pin, 100000); // pro predni senzor 
-  //tcs.begin(0x29,&Wire1);
-  if (!tcs.begin(0x29,&Wire1)) {
-    Serial.println("Barevný senzor TCS34725 nebyl nalezen!");
-    while (1);
-  } else {
-    Serial.println("TCS34725 detekován.");
-  }
+
+
 
     printf("RB3204-RBCX\n");
     delay(50);
@@ -270,11 +383,9 @@ void setup() {
     micros(); // update overflow
     delay(200);
 
-    uart_set_up();
+    //!uart_set_up();
 
-    //uart_thread_function();
-    std::thread uart_thread (get_data, uart_data);
-    uart_thread.detach();
+
     //delay(1000);
 
 
@@ -289,7 +400,12 @@ void setup() {
     Serial.println("Senzor VL53L0X uspesne inicializovan.");
     tcs.begin(0x29);
 
+    //uart_thread_function();
+    //!std::thread uart_thread (get_data, uart_data);
+    //!uart_thread.detach();
 
+    //!std::thread i2c_thread(get_senzor_data);
+    //!i2c_thread.detach();
     Serial.println("start");
     // while (true) { // drive motor M1 to position 1000 with 100% power (32767) if button down is pressed and return to 0 position if button is released
     //     if (man.buttons().down()) {
@@ -341,12 +457,13 @@ void setup() {
                 
 void loop()
 {
-    cervena();
+    //cervena();
+    Serial.printf("red: %f, green: %f, blue: %f",senzor_data.r,senzor_data.g,senzor_data.b);
     Serial.print("######################\n");
-    VL53L0X_RangingMeasurementData_t m1, m2;
+    // VL53L0X_RangingMeasurementData_t m1, m2;
     
-    sensor1.rangingTest(&m1, false);
-    sensor2.rangingTest(&m2, false);
+    // sensor1.rangingTest(&m1, false);
+    // sensor2.rangingTest(&m2, false);
     //   VL53L0X_RangingMeasurementData_t measure;
     //   Serial.print("Reading a measurement... ");
     //   lox.rangingTest(&measure, true); 
@@ -358,10 +475,10 @@ void loop()
     //   }
     
     Serial.print("Senzor 1 (0x30): ");
-    Serial.print((m1.RangeStatus != 4)  ? String(m1.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
+    Serial.print((senzor_data.m1.RangeStatus != 4)  ? String(senzor_data.m1.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
     Serial.print("\n");
     Serial.print("Senzor 2 (0x31): ");
-    Serial.print((m2.RangeStatus != 4)  ? String(m2.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
+    Serial.print((senzor_data.m2.RangeStatus != 4)  ? String(senzor_data.m2.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
     Serial.print("\n");
     delay(100);
     //Serial.println("ping");
@@ -396,7 +513,7 @@ void loop()
                 x1 =uart_data.results_array[i].x1;     // 30 min
                 x2 =uart_data.results_array[i].x2;     // 280 max
 
-                if(uart_data.results_array[i].color&&(!(uart_data.results_array[i].name)))
+                if((!(uart_data.results_array[i].name))) // uart_data.results_array[i].color&&
                 {
                     int object_center = x1+((x2 - x1) / 2); //! Výpočet středu objektu do samostatné proměnné pro lepší čitelnost
                     Serial.printf("center je: %d",object_center);
@@ -405,18 +522,19 @@ void loop()
                     }
                     else if (object_center > center) { //! Upraveno pro použití object_center
                                 Serial.println("##### RRRRRRRRRRRRRRRRRRRRRRRRR #####");
-                        tocka(-1, 100);
+                        tocka(1, 90);
                         delay(300);
                     }
                     else if (object_center < center && object_center > 30) { //! Upraveno pro použití object_center
                         Serial.println("##### LLLLLLLLLLLLLLLLLLL #####");
-                        tocka(1, 100);
+                        tocka(-1, 90);
                         delay(300);
                     }
                 }
                 else{
                     Serial.println("------------- je to modre -------------");
                 }
+                uart_data = {0};
         }
     }
     

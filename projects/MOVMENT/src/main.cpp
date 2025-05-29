@@ -129,6 +129,8 @@ void jizda_vpred(int cil,int rychlost)
 void turn(int angle, int rychlost)
 {
     auto& man = rb::Manager::get(); // vytvoří referenci na man class
+    man.motor(rb::MotorId::M1).setCurrentPosition(0);
+    man.motor(rb::MotorId::M4).setCurrentPosition(0);
     //m1 musí být -
     int M1_pos = 0;
     int M4_pos = 0, odhylaka = 0, integral = 0, last_odchylka =0, rampa_vzdalenost = 640;
@@ -136,14 +138,14 @@ void turn(int angle, int rychlost)
     float cil = 0;
     cil = (((roztec+r_kola))*3.14159*angle/2)/40;    // roztec a kolo jsou v mm
 
-    while(-1*M1_pos<cil)   //! 4000 převod na metry
+    while(-1*M1_pos<cil&& M4_pos<cil)   //! 4000 převod na metry
     {
        // man.motor(rb::MotorId::M1).setCurrentPosition(0);
         //man.motor(rb::MotorId::M4).setCurrentPosition(0);
-        odhylaka = -1*M1_pos-M4_pos;
+        odhylaka = abs(M1_pos) - abs(M4_pos);
         integral += odhylaka; 
 
-        man.motor(rb::MotorId::M1).power(rychlost-odhylaka);
+        man.motor(rb::MotorId::M1).power(rychlost);
         man.motor(rb::MotorId::M4).power(rychlost);// i míň se to kvedla 50 -55 je ok  bez derivace )poslední čast na 2,5 m 3cm odchylka
         //! získá encodery z motoru
         man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
@@ -153,7 +155,7 @@ void turn(int angle, int rychlost)
             M4_pos = -info.position();
         });
         delay(50);
-        std::cout<<"cil: "<<cil<<" M1pos: "<<-1*M1_pos<<std::endl;
+        std::cout<<"cil: "<<cil<<" M1pos: "<<-1*M1_pos<<" M4 pos: "<<M4_pos<<std::endl;
         std::cout<<"odchylak: "<<M1_pos-M4_pos<<std::endl;
 
         delay(50);
@@ -480,7 +482,7 @@ void setup() {
         {
             Serial.println("*******************************");
             delay(1000);
-            turn(90,10000);
+            turn(180,10000);
             //jizda_vpred(50,20000);
         }
         delay(200);

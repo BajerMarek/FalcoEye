@@ -6,6 +6,7 @@
 #include "RBCX.h"
 #include "uart_comand.h"
 #include"i2c_tools.h"
+#include"senzor_com.h"
 
 #include <Wire.h>
 #include "Adafruit_TCS34725.h"
@@ -25,65 +26,141 @@ Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_50MS, TCS3472
 static const uint8_t TCS_SDA_pin = 14;
 static const uint8_t TCS_SCL_pin = 26;
 
-// převod na metr encoder 4000 cca -> na jednom metru jsem naměřil 4000 encoderu
-typedef struct tagI2cout
-{
-    // barevný senzor
+unsigned long start_time =0;
+unsigned long end_time =10000;
 
-    float r;
-    float g;
-    float b;
-
-    //laseový senzor
-
-    VL53L0X_RangingMeasurementData_t m1;
-    VL53L0X_RangingMeasurementData_t m2;
-
-}I2cout;
-
-void cervena(){
-  // here will be the color value -> red = 1, blue = 0
-  static const uint8_t TCS_SDA_pin = 21;
-  static const uint8_t TCS_SCL_pin = 22;
-  pinMode(TCS_SDA_pin, PULLUP);
-  pinMode(TCS_SCL_pin, PULLUP);
-  Wire1.begin(TCS_SDA_pin, TCS_SCL_pin, 100000);
-  float r, g, b;
-  tcs.getRGB(&r, &g, &b);
-  float red_avg = r;
-  float green_avg = g;
-  float blue_avg = b;
-  printf("red: %f, green: %f, blue: %f\n", red_avg, green_avg, blue_avg);
-  delay(10);
-  if (red_avg > green_avg && red_avg > blue_avg && red_avg > 100)
-  {
-    printf("RED\n");
-    //return true;
-  }
-  if (blue_avg > green_avg && blue_avg > red_avg && blue_avg > 100){
-    //return false;
-  }
-}
+int enc_to_cm = 400; //! mm - 4000 převod na metr
+int roztec = 175; //! mm -  vzdalenost středů kol od sebe
+int r_kola = 36; //! mm -  poloměr kola 
+// ((poloměr + rozteč)*4000) × π × stupně // v metrech
 //#include "robotka.h"
-
-// std::mutex uart_mutex;  //! zamek pro komunikaci s vláknem -> pokud otevřeno poze jedno vlákno může komunikovat jinak nic
-//UARTResult_t latest_uart_data;  //? globalni proměná pro udládání dat z uartu
 UARTResult_t uart_data;
 I2cout senzor_data;
-// Funkce pro vlákno, které čte data z UARTu
-// void uart_thread_function() {
-//     while (true) {
-//         UARTResult_t uart_data;
-//         if (uart_recive(uart_data)) { // Funkce pro příjem dat z UARTu
-//             std::lock_guard<std::mutex> lock(uart_mutex); //! Zamkneme mutex pro další používání + odemkne při skončení skopu
-//             memcpy(&latest_uart_data,&uart_data,sizeof (uart_data));
-//             //latest_uart_data = uart_data; // Uložíme data
-//         }//? teď se mutex odemkne pro datlší používání
-        
-//         std::this_thread::sleep_for(sd::chrono::milliseconds(10)); // Snížení zatížení CPU -> uspí vlákno na 10ms
-//     }
-// }
 
+// cíl v cm
+// rychlost v rozmezí -32768 až 32768
+void jizda_vpred(int cil,int rychlost)
+{
+    auto& man = rb::Manager::get(); // vytvoří referenci na man class
+    man.motor(rb::MotorId::M1).setCurrentPosition(0);
+    man.motor(rb::MotorId::M4).setCurrentPosition(0);
+
+
+    //m1 musí být -
+    int M1_pos = 0, M4_pos = 0, odhylaka = 0, integral = 0, last_odchylka =0, rampa_vzdalenost = 640;
+    int P =110, I = 0.01, D =0.5; 
+    int target = rychlost;
+    int a = 500;
+    int super_cil = cil*40 - rampa_vzdalenost;
+
+    //! zrychlení
+    for(int i = 0; i < target-1; i+=a)
+    {
+        odhylaka = M1_pos-M4_pos;
+        integral += odhylaka; 
+        man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
+            M1_pos = info.position();
+        });
+        man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor& info) {
+            M4_pos = -info.position();
+        });
+        man.motor(rb::MotorId::M1).power(i+odhylaka*110);
+        man.motor(rb::MotorId::M4).power(-i);
+        delay(10);
+        //! musím zjistit jakou vzdálenost tímto ujedu nasledně ji z dvojnasobit a odečíst do požadované vzdálenosti
+    }
+    integral =0;    //###
+    man.motor(rb::MotorId::M1).setCurrentPosition(0);
+    man.motor(rb::MotorId::M4).setCurrentPosition(0);
+    std::cout<<"M1pos: "<<-1*M1_pos<<" < "<<(super_cil)<<std::endl;
+    while(-1*M1_pos<super_cil)   //! 4000 převod na metry
+    {
+
+        odhylaka = M1_pos-M4_pos;   // otoceni 1 a 4
+        integral += odhylaka; 
+
+        man.motor(rb::MotorId::M1).power(target+odhylaka*P+integral*I+(odhylaka-last_odchylka)*D);
+        man.motor(rb::MotorId::M4).power(target*-1);// i míň se to kvedla 50 -55 je ok  bez derivace )poslední čast na 2,5 m 3cm odchylka
+        //! získá encodery z motoru
+        man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
+            M1_pos = info.position();
+
+        });
+        man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor& info) {
+            M4_pos = -info.position();
+        });
+
+        delay(50);
+        //Serial.printf("odhylaka: %d\n",odhylaka);
+        std::cout<<"ODchilka: "<<odhylaka<<std::endl;
+        // if(odhylaka>1000 || odhylaka<-1000)
+        // {
+        //         man.motor(rb::MotorId::M1).setCurrentPosition(0);
+        //         man.motor(rb::MotorId::M4).setCurrentPosition(0);
+        //         odhylaka =0;
+        // }
+        last_odchylka = odhylaka;
+        
+    }
+    //! zpomalení
+    
+    for(int i = target; i>=0; i-=a)
+    {
+        
+        //odhylaka = M4_pos-M1_pos;
+        man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
+            M1_pos = info.position();
+        });
+        man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor& info) {
+            M4_pos = -info.position();
+        });
+        man.motor(rb::MotorId::M1).power(i+odhylaka*0.01);
+        man.motor(rb::MotorId::M4).power(-i);
+        delay(10);
+        //if(odhylaka>1000) odhylaka = 0;
+        //std::cout<<"I: "<<i<<std::endl;
+    }
+    man.motor(rb::MotorId::M1).setCurrentPosition(0);
+    man.motor(rb::MotorId::M4).setCurrentPosition(0);
+    man.motor(rb::MotorId::M1).power(0);
+    man.motor(rb::MotorId::M4).power(0);
+    odhylaka = 0;
+}
+void turn(int angle, int rychlost)
+{
+    auto& man = rb::Manager::get(); // vytvoří referenci na man class
+    //m1 musí být -
+    int M1_pos = 0, M4_pos = 0, odhylaka = 0, integral = 0, last_odchylka =0, cil = 0;
+    int target = rychlost;
+    int a = 500;
+    cil = (roztec+r_kola)*40;
+
+    while(-1*M1_pos<cil)   //! 4000 převod na metry
+    {
+        std::cout<<"cil: "<<cil<<"M1pos: "<<-1*M1_pos<<std::endl;
+        man.motor(rb::MotorId::M1).setCurrentPosition(0);
+        man.motor(rb::MotorId::M4).setCurrentPosition(0);
+        odhylaka = M1_pos-M4_pos;
+        integral += odhylaka; 
+
+        man.motor(rb::MotorId::M1).power(20000+odhylaka*55+integral*0.01+(odhylaka-last_odchylka)*0.1);
+        man.motor(rb::MotorId::M4).power(20000*-1);// i míň se to kvedla 50 -55 je ok  bez derivace )poslední čast na 2,5 m 3cm odchylka
+        //! získá encodery z motoru
+        man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
+            M1_pos = info.position();
+        });
+        man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor& info) {
+            M4_pos = -info.position();
+        });
+        std::cout<<"odchylak: "<<M1_pos-M4_pos<<std::endl;
+
+        delay(50);
+        last_odchylka = odhylaka;
+    }
+
+
+    
+}
 void get_data(UARTResult_t vstup)
 {
     while(1)
@@ -259,8 +336,14 @@ void kupredu(int M1_dis, int M4_dis)
     man.motor(rb::MotorId::M4).power(16000);
 
 }
+void STOP(rb::Motor &m)
+{
+    Serial.println("---- KONEC VSEMU ----");
+    auto& man = rb::Manager::get(); // vytvoří referenci na man class
+    m.brake(20000);
+}
 
-void turn (int angle,int speed)
+void zkouska(int angle,int speed)
 {
     Serial.begin(115200);
     auto& man = rb::Manager::get(); // vytvoří referenci na man class
@@ -285,31 +368,9 @@ void turn (int angle,int speed)
     //man.motor(rb::MotorId::M1).driveToValue()
 }
 
-void pokus()
-{
-    for(int i = 0; i<3; i++) {
-        micros(); // update overflow
-        kupredu(16000,16000);
-        printf("lmotor power: %d rmotor power: %d\n", 32767, 32767);
-        delay(1000);
-        kupredu(-16000,-16000);
-        delay(1000);
-        
-
-        rb::Manager::get()
-            .setMotors()
-            .power(rb::MotorId::M1, 0)
-            .power(rb::MotorId::M4, 0)
-            .set();
-        printf("lmotor power: %d rmotor power: %d\n", 0, 0);
-        delay(5000);
-    }
-}
-
-
-
 void setup() {
-    turn(1,1);
+    //turn(1,1);
+  start_time=millis();
   Serial.begin(115200);
   while (! Serial) {
     delay(1);
@@ -401,78 +462,44 @@ void setup() {
     tcs.begin(0x29);
 
     //uart_thread_function();
-    //!std::thread uart_thread (get_data, uart_data);
-    //!uart_thread.detach();
+    std::thread uart_thread (get_data, uart_data);
+    uart_thread.detach();
 
-    //!std::thread i2c_thread(get_senzor_data);
-    //!i2c_thread.detach();
+    std::thread i2c_thread(get_senzor_data);
+    i2c_thread.detach();
     Serial.println("start");
-    // while (true) { // drive motor M1 to position 1000 with 100% power (32767) if button down is pressed and return to 0 position if button is released
-    //     if (man.buttons().down()) {
-        //         man.leds().green(true);
-        //         man.setMotors().driveToValue(rb::MotorId::M1, 1000, 32767).set();
-        //     } else {
-            //         man.leds().green(false);
-            //         man.setMotors().driveToValue(rb::MotorId::M1, 0, 32767).set();
-            //     }
-            // }
-            // UARTResult_t uart_data_uart;
-            
-            
-            //! puvodni program
-            // if (man.buttons().down()) {
-                //     printf("Tlacitko stisknuto\n");
-                
-                
-                //     encoder(3000);
-                
-                //     // //     printf("Tlacitko stisknuto\n");
-                //     // //     //delay(1000);
-                //     // //     man.motor(rb::MotorId::M1).power(-16000);
-                //     // //     man.motor(rb::MotorId::M4).power(16000);
-                //     // //     delay(3000);
-                //     // //     // man.setMotors().driveToValue(rb::MotorId::M1, 100*ticksToMm, -32767).set();
-                //     // //     // man.setMotors().driveToValue(rb::MotorId::M4, 100*ticksToMm, 32767).set();
-                //     // } else {
-                    //     //     man.motor(rb::MotorId::M1).brake(16000);
-                    //     //     man.motor(rb::MotorId::M4).brake(16000);
-                    //     //     delay(3000);
-                    //     // }
-                    //     //!tady konci
-                    // }
-                    
-                    
-                    
-                    // // delay(1000);
-                    // // kupredu(16000,16000);
-                    // // delay(10000);
-                    // // if (rkButtonIsPressed(BTN_DOWN)) { // Je tlačítko dolů stisknuté?
-                    // //     printf("***************START******************\n");
-                    // //     delay(1000);
-                    // //     kupredu(16000,16000);
-                    // //     delay(3000);
-                    // // }
-                    
-                }
-                
+    while(1)
+    {
+        if(man.buttons().right())
+        {
+            Serial.println("*******************************");
+            delay(1000);
+            turn(90,10000);
+            //jizda_vpred(50,20000);
+        }
+        delay(200);
+    }
+
+}
 void loop()
 {
+    // while(1)
+    // {
+   // if (man.buttons().down()) {
+    //    break;
+   // }
+    // delay(100);
+   // }
+    if(millis()-start_time >=end_time)
+    {
+        while(1)
+        {
+           Serial.print("---- HOTOVO ----\n"); 
+        }
+    }
     //cervena();
     Serial.printf("red: %f, green: %f, blue: %f",senzor_data.r,senzor_data.g,senzor_data.b);
     Serial.print("######################\n");
-    // VL53L0X_RangingMeasurementData_t m1, m2;
-    
-    // sensor1.rangingTest(&m1, false);
-    // sensor2.rangingTest(&m2, false);
-    //   VL53L0X_RangingMeasurementData_t measure;
-    //   Serial.print("Reading a measurement... ");
-    //   lox.rangingTest(&measure, true); 
-
-    //   if (measure.RangeStatus != 4) { 
-    //     Serial.print("Distance (cm): "); Serial.println(measure.RangeMilliMeter / 10.0);
-    //   } else {
-    //     Serial.println("Nothing in range! ");
-    //   }
     
     Serial.print("Senzor 1 (0x30): ");
     Serial.print((senzor_data.m1.RangeStatus != 4)  ? String(senzor_data.m1.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
@@ -481,18 +508,12 @@ void loop()
     Serial.print((senzor_data.m2.RangeStatus != 4)  ? String(senzor_data.m2.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
     Serial.print("\n");
     delay(100);
-    //Serial.println("ping");
-    //std::lock_guard<std::mutex> lock(uart_mutex);
-    //Serial.println(uart_data.header);
     Serial.println("---- UART START ----");
-    
-    //Serial.printf("BARVA JE: %d",uart_data.results_array->color);
+
     int x1 =0;
     int x2 =0;
     int center = 125;
-//  Serial.printf("Header: %d, Length: %d, Sum: %d\n",
-//             uart_data.header, uart_data.leng, uart_data.suma);
-//             leg = uart_data.leng;
+
     if(uart_data.header == 255)
     {
         Serial.printf("Header: %d, Length: %d, Sum: %d\n",
@@ -522,12 +543,12 @@ void loop()
                     }
                     else if (object_center > center) { //! Upraveno pro použití object_center
                                 Serial.println("##### RRRRRRRRRRRRRRRRRRRRRRRRR #####");
-                        tocka(1, 90);
+                        //!tocka(1, 90);
                         delay(300);
                     }
                     else if (object_center < center && object_center > 30) { //! Upraveno pro použití object_center
                         Serial.println("##### LLLLLLLLLLLLLLLLLLL #####");
-                        tocka(-1, 90);
+                        //!tocka(-1, 90);
                         delay(300);
                     }
                 }
@@ -537,11 +558,6 @@ void loop()
                 uart_data = {0};
         }
     }
-    
-    
-    
+      
 }
     
-
-    
- // I don't need loop, because i'm using while(true) in setup (it doesn't require to create global variables)x

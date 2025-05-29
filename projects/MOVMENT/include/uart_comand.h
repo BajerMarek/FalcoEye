@@ -97,3 +97,5 @@ bool get_uart_data(UARTResult_t &output) {
     }
     return false;
 }
+
+// pro využití ve dedikovaném vlákně

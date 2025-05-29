@@ -130,21 +130,21 @@ void turn(int angle, int rychlost)
 {
     auto& man = rb::Manager::get(); // vytvoří referenci na man class
     //m1 musí být -
-    int M1_pos = 0, M4_pos = 0, odhylaka = 0, integral = 0, last_odchylka =0, cil = 0;
-    int target = rychlost;
-    int a = 500;
-    cil = (roztec+r_kola)*40;
+    int M1_pos = 0;
+    int M4_pos = 0, odhylaka = 0, integral = 0, last_odchylka =0, rampa_vzdalenost = 640;
+    int P =110, I = 0.01, D =0.5; 
+    float cil = 0;
+    cil = (((roztec+r_kola))*3.14159*angle/2)/40;    // roztec a kolo jsou v mm
 
     while(-1*M1_pos<cil)   //! 4000 převod na metry
     {
-        std::cout<<"cil: "<<cil<<"M1pos: "<<-1*M1_pos<<std::endl;
-        man.motor(rb::MotorId::M1).setCurrentPosition(0);
-        man.motor(rb::MotorId::M4).setCurrentPosition(0);
-        odhylaka = M1_pos-M4_pos;
+       // man.motor(rb::MotorId::M1).setCurrentPosition(0);
+        //man.motor(rb::MotorId::M4).setCurrentPosition(0);
+        odhylaka = -1*M1_pos-M4_pos;
         integral += odhylaka; 
 
-        man.motor(rb::MotorId::M1).power(20000+odhylaka*55+integral*0.01+(odhylaka-last_odchylka)*0.1);
-        man.motor(rb::MotorId::M4).power(20000*-1);// i míň se to kvedla 50 -55 je ok  bez derivace )poslední čast na 2,5 m 3cm odchylka
+        man.motor(rb::MotorId::M1).power(rychlost-odhylaka);
+        man.motor(rb::MotorId::M4).power(rychlost);// i míň se to kvedla 50 -55 je ok  bez derivace )poslední čast na 2,5 m 3cm odchylka
         //! získá encodery z motoru
         man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
             M1_pos = info.position();
@@ -152,13 +152,19 @@ void turn(int angle, int rychlost)
         man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor& info) {
             M4_pos = -info.position();
         });
+        delay(50);
+        std::cout<<"cil: "<<cil<<" M1pos: "<<-1*M1_pos<<std::endl;
         std::cout<<"odchylak: "<<M1_pos-M4_pos<<std::endl;
 
         delay(50);
         last_odchylka = odhylaka;
     }
+    man.motor(rb::MotorId::M1).setCurrentPosition(0);
+    man.motor(rb::MotorId::M4).setCurrentPosition(0);
+    man.motor(rb::MotorId::M1).power(0);
+    man.motor(rb::MotorId::M4).power(0);
 
-
+    odhylaka = 0, integral = 0;
     
 }
 void get_data(UARTResult_t vstup)

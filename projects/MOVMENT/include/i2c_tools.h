@@ -9,7 +9,7 @@ void writeRegister(uint8_t deviceAddress, uint8_t reg, uint8_t value) {
     Wire.endTransmission();
   }
 
-//! funkčí najde zařízení na zběrnici
+//! funkční najde zařízení na zběrnici
 void scan_i2c()
 {
   Serial.println("Scanning I2C bus...");

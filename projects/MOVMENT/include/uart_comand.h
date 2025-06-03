@@ -35,7 +35,7 @@ typedef struct tagUARTResult_t {
 
 void uart_set_up(){
         Serial.begin(115200); // Hlavní UART pro komunikaci s PC
-        Serial1.begin(115200, SERIAL_8N1, 16,17); // Nastavení UART2
+        Serial1.begin(115200, SERIAL_8N1, 16,17); // Nastavení UART1
         while (!Serial) {
             ; // Čekáme na připojení sériového portu (pokud používáš USB)
         }
@@ -97,5 +97,3 @@ bool get_uart_data(UARTResult_t &output) {
     }
     return false;
 }
-
-// pro využití ve dedikovaném vlákně

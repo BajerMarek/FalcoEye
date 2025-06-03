@@ -1,11 +1,11 @@
-#include <Arduino.h>
+//#include <Arduino.h>
 #include "robotka.h"
 
-//!    https://github.com/RoboticsBrno/RB3204-RBCX-Robotka-library/archive/v1.3.15.zip
-//!    https://github.com/RoboticsBrno/RB3204-RBCX-Robotka-library.git
-#include"lx16a.hpp"
-#include"RBCXManager.h"
-
+//    https://github.com/RoboticsBrno/RB3204-RBCX-Robotka-library/archive/v1.3.15.zip
+//    https://github.com/RoboticsBrno/RB3204-RBCX-Robotka-library.git
+//#include"lx16a.hpp"
+//#include"RBCXManager.h"
+#include "SmartServoBus.hpp"
 
 using namespace lx16a; // aby nebylo třeba to psát všude
 // Funkce pro inicializaci serva
@@ -52,11 +52,16 @@ void ch_s_soft_move(auto & bus, int id, int angle, int speed = 200.0) {
 void setup() {
     rkConfig cfg;
     Serial.begin(115200);
-   auto &bus = (2);
-    //ch_s_init(bus,0);
-    //ch_s_init(bus,1);
+        delay(100);
+    auto &bus = rkSmartServoBus(2);
+        delay(100);
+    ch_s_init(bus,0);
+        delay(100);
+    ch_s_init(bus,1);
+        delay(100);
+    ch_s_move(bus,0,20,100);
     //Serial.printf("servo 0 je na pozici: %f |servo 1 je na pozici: %f\n",bus.pos(0).deg(),bus.pos(1).deg());
-    delay(400);
+    delay(100);
 }
 
 void loop() {

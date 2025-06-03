@@ -195,7 +195,11 @@ void turn(int angle, int rychlost, int lesser = 1)
     float cil = 0;
     cil = ((((roztec+r_kola))*PI*angle/2)/40)/lesser;    // roztec a kolo jsou v mm
 
+<<<<<<< HEAD
     while(abs(M1_pos)<abs(cil)&& abs(M4_pos)<abs(cil))   //! 4000 převod na metry
+=======
+    while(-1*M1_pos<cil&& M4_pos<cil)   //! 4000 převod na metry
+>>>>>>> 838ccb8470055dd19213b242cd9a2922c5ca1df4
     {
         if (cil<0) smer = -1;
         //else smer = 1;
@@ -204,8 +208,13 @@ void turn(int angle, int rychlost, int lesser = 1)
         odhylaka = abs(M1_pos) - abs(M4_pos);
         integral += odhylaka; 
 
+<<<<<<< HEAD
         man.motor(rb::MotorId::M1).power(smer*rychlost);
         man.motor(rb::MotorId::M4).power(smer*rychlost);// i míň se to kvedla 50 -55 je ok  bez derivace )poslední čast na 2,5 m 3cm odchylka
+=======
+        man.motor(rb::MotorId::M1).power(rychlost);
+        man.motor(rb::MotorId::M4).power(rychlost);// i míň se to kvedla 50 -55 je ok  bez derivace )poslední čast na 2,5 m 3cm odchylka
+>>>>>>> 838ccb8470055dd19213b242cd9a2922c5ca1df4
         //! získá encodery z motoru
         man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
             M1_pos = info.position();
@@ -694,8 +703,12 @@ void setup() {
         {
             Serial.println("*******************************");
             delay(1000);
+<<<<<<< HEAD
             //turn(180,10000);
             //man.motor(rb::MotorId::M1).power(16000);
+=======
+            turn(180,10000);
+>>>>>>> 838ccb8470055dd19213b242cd9a2922c5ca1df4
             //jizda_vpred(50,20000);
             stena();
         }

@@ -47,19 +47,31 @@ void setup() {
     delay(1);
   }
 
-  Wire.begin(21, 22);
   // delay(10);
   // Serial.println("Wire (I2C) inicializováno na SDA=21, SCL=22");
+  
+  //Wire.begin(21, 22);  // SDA = GPIO21, SCL = GPIO22
+  pinMode(XSHUT1, OUTPUT);
+  pinMode(XSHUT2, OUTPUT);
+  
+  digitalWrite(XSHUT1, LOW);
+  digitalWrite(XSHUT2, LOW);
+  delay(20);
+  
+  Wire.begin(21, 22);
+  digitalWrite(XSHUT1, HIGH);
+  delay(10);
+  scan_i2c();
 
-    //Wire.begin(21, 22);  // SDA = GPIO21, SCL = GPIO22
-    pinMode(XSHUT1, OUTPUT);
-    pinMode(XSHUT2, OUTPUT);
-
-    digitalWrite(XSHUT1, LOW);
-    digitalWrite(XSHUT2, LOW);
-    delay(20);
-
+  if (!sensor1.begin()) {
+    Serial.println("Nepodařilo se spustit senzor 1");
+    while (1);
+  }
+    scan_i2c();
+    sensor1.setAddress(0x30);
+    writeRegister(0x29,0x8A,0x30);
     digitalWrite(XSHUT2, HIGH);
+    scan_i2c();
     delay(10);
 
   
@@ -74,33 +86,25 @@ void setup() {
   sensor2.setAddress(0x31);
   scan_i2c();
 
-  digitalWrite(XSHUT1, HIGH);
-  delay(10);
-  scan_i2c();
-
-  if (!sensor1.begin()) {
-    Serial.println("Nepodařilo se spustit senzor 1");
-    while (1);
-  }
   scan_i2c();
  // writeRegister(0x29,0x8A,0x30);
     scan_i2c();
-  sensor1.setAddress(0x30);
+
 
     Serial.println("############# zacina inicializace #############");
     scan_i2c();    
 
-  pinMode(TCS_SDA_pin, PULLUP);
-  pinMode(TCS_SCL_pin, PULLUP);
+  // pinMode(TCS_SDA_pin, PULLUP);
+  // pinMode(TCS_SCL_pin, PULLUP);
 
-  Wire1.begin(TCS_SDA_pin, TCS_SCL_pin, 100000); // pro predni senzor 
-  //tcs.begin(0x29,&Wire1);
-  if (!tcs.begin(0x29,&Wire1)) {
-    Serial.println("Barevný senzor TCS34725 nebyl nalezen!");
-    while (1);
-  } else {
-    Serial.println("TCS34725 detekován.");
-  }
+  // Wire1.begin(TCS_SDA_pin, TCS_SCL_pin, 100000); // pro predni senzor 
+  // //tcs.begin(0x29,&Wire1);
+  // if (!tcs.begin(0x29,&Wire1)) {
+  //   Serial.println("Barevný senzor TCS34725 nebyl nalezen!");
+  //   while (1);
+  // } else {
+  //   Serial.println("TCS34725 detekován.");
+  // }
 
 }
 

@@ -52,32 +52,20 @@ void ch_s_soft_move(auto & bus, int id, int angle, int speed = 200.0) {
 void setup() {
     rkConfig cfg;
     rkSetup(cfg);
+
     Serial.begin(115200);
-<<<<<<< HEAD
-        delay(100);
-    auto &bus = rkSmartServoBus(2);
-        delay(100);
+    auto &bus = rkSmartServoBus(1);
     ch_s_init(bus,0);
-        delay(100);
-    ch_s_init(bus,1);
-        delay(100);
-    ch_s_move(bus,0,20,100);
-    //Serial.printf("servo 0 je na pozici: %f |servo 1 je na pozici: %f\n",bus.pos(0).deg(),bus.pos(1).deg());
-    delay(100);
-=======
-    auto &bus = rkSmartServoBus(2);
-    ch_s_init(bus,0);
-    ch_s_init(bus,1);
-    ch_s_move(bus,1,50,100);        //! 50 zavřeno - 30 otevřeno - 240 vyhozeno + 0 vzadu 1 vepředu
+   // ch_s_init(bus,1);
+    ch_s_move(bus,0,50,100);        //! 50 zavřeno - 30 otevřeno - 240 vyhozeno + 0 vzadu 1 vepředu
     Serial.println("First done");
     delay(10000);
-    ch_s_move(bus,1,240,100);
+   // ch_s_move(bus,1,90,100);
     //ch_s_move(bus,1,20,100);
 
     //delay(1000);
     //ch_s_move(bus,0,20,-100);
     //Serial.printf("servo 0 je na pozici: %f |servo 1 je na pozici: %f\n",bus.pos(0).deg(),bus.pos(1).deg());
->>>>>>> 838ccb8470055dd19213b242cd9a2922c5ca1df4
 }
 
 void loop() {

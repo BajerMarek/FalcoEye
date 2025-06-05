@@ -31,6 +31,7 @@ typedef struct tagUARTResult_t {
     uint8_t leng;            // Délka dat
     int16_t suma;            // Součet
     ODResult_t results_array[MAX_OD_BOX_CNT];  // Pole výsledků
+    uint8_t found_id;   // kde byl nalezen puk
 } UARTResult_t;
 
 void uart_set_up(){

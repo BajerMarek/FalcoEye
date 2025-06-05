@@ -1,23 +1,27 @@
-#include "robotka.h"
+#include <iostream>
+#include <Arduino.h>
 #include "RBCX.h"
+
 void setup() {
-    Serial.begin(115200);
-    rkConfig cfg;
-    rkSetup(cfg);
+    printf("RB3204-RBCX\n");
+    delay(50);
 
-    // Nastavení serva
-    rkServosSetPosition(1, 0); // Servo 1 nastaví na 90°
-    delay(1000);
+    printf("Init manager\n");
+    auto& man = rb::Manager::get(); // get manager instance as singleton
+    man.install(); // install manager
 
-    rkServosSetPosition(1, 90); // Servo 1 nastaví na 0°
-    delay(1000);
+    const int servoId = 1; // servo id
+    const float maxRange = 2.0f; // my servo accepts values from -2 to 2 (Servo SG-90 9g - range 0-180°)
 
-    rkServosSetPosition(1, 0); // Servo 1 nastaví na 90°
-    delay(1000);
-    //rkServosSetPosition(1, ); // Servo 1 nastaví na 180°
-    //delay(1000);
+    while (true) {
+        if(man.buttons().down()) {
+            man.stupidServo(servoId).setPosition(-maxRange); // on button down, set servo to min range
+        } else if(man.buttons().up()) {
+            man.stupidServo(servoId).setPosition(maxRange); // on button up, set servo to max range
+        } else {
+            man.stupidServo(servoId).setPosition(0); // default center position
+        }
+    }
 }
 
-void loop() {
-    // Serva zůstávají na poslední pozici
-}
+void loop() {} // I don't need loop, because i'm using while(true) in setup (it doesn't require to create global variables)

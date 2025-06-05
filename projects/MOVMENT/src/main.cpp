@@ -703,21 +703,21 @@ void setup() {
 
     //servo_dance();
 
-    while(1)
-    {
-        Serial.printf("%d",man.buttons().right());
-        if(man.buttons().right())
-        {
-            Serial.println("*******************************");
-            delay(1000);
-            //turn(180,10000);
-            //man.motor(rb::MotorId::M1).power(16000);
-            //jizda_vpred(50,20000);
-            //stena();
-            servo_dance();
-        }
-        delay(200);
-    }
+    // while(1)
+    // {
+    //     Serial.printf("%d",man.buttons().right());
+    //     if(man.buttons().right())
+    //     {
+    //         Serial.println("*******************************");
+    //         delay(1000);
+    //         //turn(180,10000);
+    //         //man.motor(rb::MotorId::M1).power(16000);
+    //         //jizda_vpred(50,20000);
+    //         //stena();
+    //         servo_dance();
+    //     }
+    //     delay(200);
+    // }
 
 }
 void loop()

@@ -722,6 +722,7 @@ void setup() {
 }
 void loop()
 {
+        auto& man = rb::Manager::get(); // get manager instance as singleton
     // while(1)
     // {
    // if (man.buttons().down()) {
@@ -762,7 +763,12 @@ void loop()
     int x1 =0;
     int x2 =0;
     int center = 125;
-
+    if(man.buttons().right())
+    {
+        Serial.println("---- RESCUE START ----");
+        delay(1000);
+        jizda_vpred(50,20000);
+    }
     if(uart_data.header == 255)
     {
         Serial.printf("Header: %d, Length: %d, Sum: %d\n",

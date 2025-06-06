@@ -204,9 +204,10 @@ void jedu_pro_puk()
     man.motor(rb::MotorId::M4).power(0);
     int x1 =1;
     int x2 =1;
-    int center = 160;
+    int center = 125;
     int object_center =1;
-    while(!(object_center < 180 && object_center > 140))
+
+    while(!(object_center < 195 && object_center > 140))
     {
         //!vypiš si střed
         // if(uart_data.header ==0)
@@ -233,17 +234,27 @@ void jedu_pro_puk()
 
                     if (object_center > center) { //! Upraveno pro použití object_center
                                 Serial.println("##### RRRRRRRRRRRRRRRRRRRRRRRRR #####");
-                        turn(1,4500,2);
+                        //turn(1,4500,2);
+                            man.motor(rb::MotorId::M1).power(5000);
+                            man.motor(rb::MotorId::M4).power(5000);
                         delay(100);
                     }
-                    else if (object_center < center && object_center > 30) { //! Upraveno pro použití object_center
+                    if (object_center < center) { //! Upraveno pro použití object_center
                         Serial.println("##### LLLLLLLLLLLLLLLLLLL #####");
-                        turn(-1,4500,2);
+                        //turn(-1,4500,2);
+                        man.motor(rb::MotorId::M1).power(-5000);
+                        man.motor(rb::MotorId::M4).power(-5000);
+                        //delay(100);
                          delay(100);
                     }
-                    delay(100);
-                
-
+                    // else
+                    // {
+                    //     Serial.println("---- NIC NEVIDIM ----");
+                    //     //man.motor(rb::MotorId::M1).power(-2000);
+                    //     //man.motor(rb::MotorId::M4).power(2000);
+                    //     delay(100);
+                    // }
+            
         }
         //Serial.println("##### MAM TO #####");
         //uart_data = {0};
@@ -254,20 +265,33 @@ void jedu_pro_puk()
 //! m1 - de do boku
 void hledani_toceni_180()
 {
-        auto& man = rb::Manager::get(); // vytvoří referenci na man class
+    auto& man = rb::Manager::get(); // vytvoří referenci na man class
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
     //m1 musí být -
-    int smer= 1, rychlost = 10000, angle = 90;
+    int rychlost = 6000, angle = 90;
+    float smer= 1.0;
     int M4_pos = 0, M1_pos = 0, odhylaka = 0, integral = 0;// last_odchylka =0, rampa_vzdalenost = 640;
     //int P =110, I = 0.01, D =0.5; 
     float cil = (((roztec+r_kola))*PI*angle/2)/40;    // roztec a kolo jsou v mm
-    for(int i =0;i<2;i++)
+    
+    for(int I =0;I<4;I++)
     {
-        while(((abs(M1_pos)<abs(cil)&& abs(M4_pos)<abs(cil)))|| vidim_puk(side,uart_data))   //! 4000 převod na metry
+
+        if (cil<0) smer = -1.3;
+        else smer = 1;
+        Serial.printf("abs(M1_pos) %d < %f cil && abs(M4_pos) %d < %f cil\n",abs(M1_pos),abs(cil),abs(M4_pos),abs(cil));
+        while(abs(M1_pos)<abs(cil)&& abs(M4_pos)<abs(cil))    //! 4000 převod na metry
         {
-            if (cil<0) smer = -1;
-            //else smer = 1;
+            if(vidim_puk(side,uart_data)) 
+            {
+                man.motor(rb::MotorId::M1).power(0);
+                man.motor(rb::MotorId::M4).power(0);
+                delay(1000);
+                jedu_pro_puk();
+                break;
+            }
+
            // man.motor(rb::MotorId::M1).setCurrentPosition(0);
             //man.motor(rb::MotorId::M4).setCurrentPosition(0);
             odhylaka = abs(M1_pos) - abs(M4_pos);
@@ -293,8 +317,11 @@ void hledani_toceni_180()
         man.motor(rb::MotorId::M4).setCurrentPosition(0);
         man.motor(rb::MotorId::M1).power(0);
         man.motor(rb::MotorId::M4).power(0);
-        if (vidim_puk(side,uart_data))  jedu_pro_puk();
+        delay(1000);
+        M4_pos = 0, M1_pos = 0;
+        Serial.printf("---- 90 done ---- cil: %f i: %d",cil,I);
         cil = -1*cil;
+        if(I==1)  cil = -1*cil;
     }
 
 
@@ -851,7 +878,7 @@ void loop()
     //     }
     // }
     //cervena();
-    hledani_vpred(50,2000);
+    hledani_toceni_180();
     //jedu_pro_puk();
     delay(10000);
     Serial.printf("red: %f, green: %f, blue: %f",senzor_data.r,senzor_data.g,senzor_data.b);

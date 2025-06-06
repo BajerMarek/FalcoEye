@@ -15,7 +15,7 @@ void setup() {
 
     while (true) {
         if(man.buttons().down()) {
-            man.stupidServo(servoId).setPosition(-maxRange); // on button down, set servo to min range
+            man.stupidServo(1).setPosition(-2.0f); // on button down, set servo to min range
         } else if(man.buttons().up()) {
             man.stupidServo(servoId).setPosition(maxRange); // on button up, set servo to max range
         } else {

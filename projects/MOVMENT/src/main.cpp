@@ -473,8 +473,6 @@ void stena()
 
     int last_mesure_m2 =0;
 
-    int stop = 1;
-
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
 
@@ -487,9 +485,9 @@ void stena()
         Serial.print("Senzor 2 (0x31): ");
         Serial.print((senzor_data.m2.RangeStatus != 4)  ? String(senzor_data.m2.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
         Serial.printf("motor 1: %d | motor 4: %d \n", M1_pos,M4_pos);
-        if(((senzor_data.m1.RangeMilliMeter < 260) || (senzor_data.m2.RangeMilliMeter<240)))
+        if((senzor_data.m1.RangeMilliMeter < 210) || (senzor_data.m2.RangeMilliMeter<300))
         {
-            stop =0;
+            //stop =0;
             break;
         }
         odhylaka = M1_pos-M4_pos;
@@ -507,7 +505,7 @@ void stena()
     }
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
-    while(((senzor_data.m1.RangeMilliMeter > 250) || (senzor_data.m2.RangeMilliMeter>200))&&stop)
+    while(!(senzor_data.m1.RangeMilliMeter < 210) && !(senzor_data.m2.RangeMilliMeter<300))
     {
         Serial.print("Senzor 1 (0x30): ");
         Serial.print((senzor_data.m1.RangeStatus != 4)  ? String(senzor_data.m1.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
@@ -545,43 +543,17 @@ void stena()
     odhylaka = 0, integral = 0;
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
-    if((last_mesure_m2==4) || (last_mesure_m2>250))
-    {
-        Serial.println("#### NATOCENI NA ZED ####");
-        turn(20,7000);
-    }
-    else
-    {
-        Serial.println("#### HLEDANI ZDI ####");
-        M4_pos = 0, M1_pos = 0, odhylaka = 0, integral = 0;// last_odchylka =0, rampa_vzdalenost = 640;
-        while((senzor_data.m1.RangeMilliMeter>250)&&((senzor_data.m1.RangeMilliMeter==4)||(senzor_data.m1.RangeMilliMeter>400)))
-        {
-            Serial.print("Senzor 1 (0x30): ");
-            Serial.print((senzor_data.m1.RangeStatus != 4)  ? String(senzor_data.m1.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
-            Serial.print("\n");
-            //int P =110, I = 0.01, D =0.5; 
+    //man.motor(rb::MotorId::M1).power(0);
+    //man.motor(rb::MotorId::M4).power(0);
+    //! doje ke stěně a jedne ze senzoru míří na stěnu
 
-            //else smer = 1;
-          // man.motor(rb::MotorId::M1).setCurrentPosition(0);
-            //man.motor(rb::MotorId::M4).setCurrentPosition(0);
-            odhylaka = abs(M1_pos) - abs(M4_pos);
-            integral += odhylaka; 
-
-            man.motor(rb::MotorId::M1).power(target);
-            man.motor(rb::MotorId::M4).power(target);// i míň se to kvedla 50 -55 je ok  bez derivace )poslední čast na 2,5 m 3cm odchylka
-            //! získá encodery z motoru
-            man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
-                M1_pos = info.position();
-            });
-            man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor& info) {
-                M4_pos = -info.position();
-            });
-            delay(50);
-                        //last_odchylka = odhylaka;
-            odhylaka = 0, integral = 0;
-        }
-        //turn(35,7000);
+    while(senzor_data.m2.RangeMilliMeter<400)
+    {
+        man.motor(rb::MotorId::M1).power(target);
+        man.motor(rb::MotorId::M4).power(target);
+        delay(50);
     }
+
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
     man.motor(rb::MotorId::M1).power(0);
@@ -699,6 +671,7 @@ void setup() {
 
     std::thread i2c_thread(get_senzor_data);
     i2c_thread.detach();
+    delay(1000);
     Serial.println("start");
 
     //servo_dance();
@@ -723,6 +696,9 @@ void setup() {
 void loop()
 {
         auto& man = rb::Manager::get(); // get manager instance as singleton
+    stena();
+    //Serial.println("konec poksne funkce");
+    delay(10000);
     // while(1)
     // {
    // if (man.buttons().down()) {

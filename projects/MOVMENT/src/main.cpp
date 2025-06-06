@@ -40,6 +40,10 @@ unsigned long end_time =10000;
 int enc_to_cm = 400; //! mm - 4000 převod na metr
 int roztec = 175; //! mm -  vzdalenost středů kol od sebe
 int r_kola = 36; //! mm -  poloměr kola 
+
+int side = 0; //! 0 = modra, 1 =cervena 
+
+int stopper =0;
 // ((poloměr + rozteč)*4000) × π × stupně // v metrech
 //#include "robotka.h"
 UARTResult_t uart_data;
@@ -463,6 +467,7 @@ void zkouska(int angle,int speed)
 
 void stena()
 {
+    stopper = 1;
     auto& man = rb::Manager::get(); // vytvoří referenci na man class
     //man.install(rb::ManagerInstallFlags::MAN_DISABLE_MOTOR_FAILSAFE); // install manager
     micros(); // update overflow
@@ -470,8 +475,6 @@ void stena()
     int P =55, I = 0.01, D =0.25; 
     int target = 10000;
     int a = 500;
-
-    int last_mesure_m2 =0;
 
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
@@ -538,7 +541,7 @@ void stena()
         //         odhylaka =0;
         // }
         last_odchylka = odhylaka;
-        last_mesure_m2= senzor_data.m2.RangeMilliMeter;
+
     }
     odhylaka = 0, integral = 0;
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
@@ -558,10 +561,82 @@ void stena()
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
     man.motor(rb::MotorId::M1).power(0);
     man.motor(rb::MotorId::M4).power(0);
-    jizda_vpred(50,22000);
+    stopper = 0;
+    jizda_vpred(50,20000);
 }
 
+void auto_servo()
+{
+    auto& man = rb::Manager::get(); // vytvoří referenci na man class
+    man.stupidServo(0).setPosition(-0.925f); 
+    delay(3000);
+    if(side)
+    {
+        while (1)
+        {
+            if (senzor_data.r>110)
+            {
+                man.stupidServo(0).setPosition(-1.5); 
+                delay(3000);
+                man.stupidServo(0).setPosition(-0.925f); 
+                delay(3000);
+            }
+            if(senzor_data.b > 110)
+            {
+                man.stupidServo(0).setPosition(2.0f); 
+                delay(3000);
+                man.stupidServo(0).setPosition(-0.925f); 
+                delay(3000);
+            }
+             delay(50);
+        }
+        
+    }
+    else
+    {
+        while (1)
+        {
+            if (senzor_data.b>110)
+            {
+                man.stupidServo(0).setPosition(-1.5); 
+                delay(3000);
+                man.stupidServo(0).setPosition(-0.925f); 
+                delay(3000);
+            }
+    
+            if(senzor_data.r > 110)
+            {
+                man.stupidServo(0).setPosition(2.0f); 
+                delay(3000);
+                man.stupidServo(0).setPosition(-0.925f); 
+                delay(3000);
+            }
+            delay(50);
+        }
 
+    }
+
+}
+void detekce_nepritele(int stopper)
+{
+    auto& man = rb::Manager::get(); // vytvoří referenci na man class
+    while (1)
+    {
+        if(((senzor_data.m1.RangeMilliMeter <150)|| (senzor_data.m2.RangeMilliMeter <150))&&!(stopper))
+        {
+            //man.motor(rb::MotorId::M1).setCurrentPosition(0);
+            //man.motor(rb::MotorId::M4).setCurrentPosition(0);
+
+            man.motor(rb::MotorId::M1).brake(20000);
+            man.motor(rb::MotorId::M4).brake(20000);
+            Serial.println("---- MAME NEPRITELE ----");
+            sleep(50);
+            //start += 1000;
+        }
+        delay(50);
+    }
+    
+}
 void setup() {
     //turn(1,1);
   //start_time=millis();
@@ -671,6 +746,12 @@ void setup() {
 
     std::thread i2c_thread(get_senzor_data);
     i2c_thread.detach();
+
+    std::thread servo_thread(auto_servo);
+    servo_thread.detach();
+
+    std::thread detekce_thread(detekce_nepritele,stopper);
+    detekce_thread.detach();
     delay(1000);
     Serial.println("start");
 
@@ -696,9 +777,9 @@ void setup() {
 void loop()
 {
         auto& man = rb::Manager::get(); // get manager instance as singleton
-    stena();
+    //stena();
     //Serial.println("konec poksne funkce");
-    delay(10000);
+    //delay(10000);
     // while(1)
     // {
    // if (man.buttons().down()) {
@@ -733,7 +814,7 @@ void loop()
     //     Serial.printf("---- avg %f ---- (avg/9.5)  %f ---- (avg/4.1) %f ----\n",avg_sen, (avg_sen/9.5),(avg_sen/4.1));
     //     if((diff_sen>(avg_sen/9.5))&&(diff_sen<(avg_sen/4.1))) Serial.printf("---- JSEM ROVNE ----\n");
 
-
+    jizda_vpred(50,20000);
     Serial.println("---- UART START ----");
 
     int x1 =0;

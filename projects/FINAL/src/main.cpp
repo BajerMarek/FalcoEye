@@ -328,6 +328,58 @@ void hledani_toceni_180()
     odhylaka = 0, integral = 0;
 }
 
+void auto_servo()
+{
+    auto& man = rb::Manager::get(); // vytvoří referenci na man class
+    man.stupidServo(0).setPosition(-0.925f); 
+    delay(3000);
+    if(side)
+    {
+        while (1)
+        {
+            if (senzor_data.r>110)
+            {
+                man.stupidServo(0).setPosition(-1.5); 
+                delay(3000);
+                man.stupidServo(0).setPosition(-0.925f); 
+                delay(3000);
+            }
+            if(senzor_data.b > 110)
+            {
+                man.stupidServo(0).setPosition(2.0f); 
+                delay(3000);
+                man.stupidServo(0).setPosition(-0.925f); 
+                delay(3000);
+            }
+             delay(50);
+        }
+        
+    }
+    else
+    {
+        while (1)
+        {
+            if (senzor_data.b>110)
+            {
+                man.stupidServo(0).setPosition(-1.5); 
+                delay(3000);
+                man.stupidServo(0).setPosition(-0.925f); 
+                delay(3000);
+            }
+    
+            if(senzor_data.r > 110)
+            {
+                man.stupidServo(0).setPosition(2.0f); 
+                delay(3000);
+                man.stupidServo(0).setPosition(-0.925f); 
+                delay(3000);
+            }
+            delay(50);
+        }
+
+    }
+
+}
 void hledani_vpred(int vzdalenost, int rychlost)
 {
 
@@ -355,7 +407,7 @@ void hledani_vpred(int vzdalenost, int rychlost)
 
         if(vidim_puk(side,uart_data))
         {
-            stop =0;
+            //stop =0;
             break;
         }
 
@@ -444,21 +496,42 @@ void get_data(UARTResult_t vstup)
        delay(10);
     }
 }
+
 void get_senzor_data()
 {
     while(1)
     {
-    // barevný senzor
+    // pinMode(TCS_SDA_pin, PULLUP);
+
+    // pinMode(TCS_SCL_pin, PULLUP);
+
+    // Wire1.begin(TCS_SDA_pin, TCS_SCL_pin, 100000); // pro predni senzor 
+
+
+    // //tcs.begin(0x29,&Wire1);
+    // if (!tcs.begin(0x29,&Wire1)) {
+    //     Serial.println("Barevný senzor TCS34725 nebyl nalezen!");
+    //     while (1);
+    // } else {
+    //     //Serial.println("TCS34725 detekován.");
+    // }
+
+
+    //  float r, g, b;
+    //  tcs.getRGB(&r, &g, &b);
+    //  senzor_data.r = r;
+    //  senzor_data.g = g;
+    //  senzor_data.b = b;
+    //  delay(10);
     tcs.getRGB(&senzor_data.r,&senzor_data.g,&senzor_data.b);
 
     // dalkové senzory
      sensor1.rangingTest(&senzor_data.m1, false);
      sensor2.rangingTest(&senzor_data.m2, false);
      delay(10);
-
     }
-
 }
+
 void servo_dance()
 {
     auto& man = rb::Manager::get(); // vytvoří referenci na man class
@@ -761,6 +834,62 @@ void set_up_peripherals()
     Serial.println("---- VSE OK ----");
     //scan_i2c();
 }
+
+void homologace()
+{
+    hledani_vpred(50,20000);
+    delay(6000);
+    turn(180,10000);
+
+        auto& man = rb::Manager::get(); // vytvoří referenci na man class
+    man.motor(rb::MotorId::M1).setCurrentPosition(0);
+    man.motor(rb::MotorId::M4).setCurrentPosition(0);
+
+   //m1 musí být -
+    int M1_pos = 0, M4_pos = 0, odhylaka = 0, integral = 0, last_odchylka =0, rampa_vzdalenost = 640; //součet dvou ramp 
+    int P =110, I = 0.01, D =0.5; 
+    int target = 20000;
+    int a = 500;
+    //int super_cil = cil*40 - rampa_vzdalenost;
+    while(senzor_data.m2.RangeDMaxMilliMeter>150)   //! 4000 převod na metry
+    {
+
+        odhylaka = M1_pos-M4_pos;   // otoceni 1 a 4
+        integral += odhylaka; 
+
+        man.motor(rb::MotorId::M1).power(target+odhylaka*P+integral*I+(odhylaka-last_odchylka)*D);
+        man.motor(rb::MotorId::M4).power(target*-1);// i míň se to kvedla 50 -55 je ok  bez derivace )poslední čast na 2,5 m 3cm odchylka
+        //! získá encodery z motoru
+        man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
+            M1_pos = info.position();
+
+        });
+        man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor& info) {
+            M4_pos = -info.position();
+        });
+
+        delay(50);
+        //Serial.printf("odhylaka: %d\n",odhylaka);
+        std::cout<<"M1: "<<M1_pos<<" M4: "<<M4_pos<<std::endl;
+        // if(odhylaka>1000 || odhylaka<-1000)
+        // {
+        //         man.motor(rb::MotorId::M1).setCurrentPosition(0);
+        //         man.motor(rb::MotorId::M4).setCurrentPosition(0);
+        //         odhylaka =0;
+        // }
+        last_odchylka = odhylaka;
+        
+    }
+    turn(-180,10000);
+    man.stupidServo(1).setPosition(-2.0f); 
+    delay(3000);
+
+    man.motor(rb::MotorId::M1).power(10000);
+    man.motor(rb::MotorId::M4).power(10000);
+    delay(3000);
+    
+}
+
 void setup() {
     Serial.begin(115200);
     printf("Init manager instance\n");
@@ -771,11 +900,14 @@ void setup() {
     micros(); // update overflow
     Serial.println("micros done");
     delay(200);
+
+    
     while(1)
     {
         Serial.println("---- CEKANI NA START ----");
         if(man.buttons().right())
         {
+
             Serial.println("---- START SET UP ----");
             
             set_up_peripherals();
@@ -867,7 +999,7 @@ void loop()
     //     }
     // }
     //cervena();
-
+    if(senzor_data.m1.RangeMilliMeter>0 && senzor_data.m2.RangeMilliMeter>0) homologace();
     Serial.printf("red: %f, green: %f, blue: %f",senzor_data.r,senzor_data.g,senzor_data.b);
     Serial.print("######################\n");
     
@@ -879,8 +1011,6 @@ void loop()
     Serial.print("\n");
     delay(150);
 
-    for(int z =0;z<10;z++)
-    {
         Serial.println("---- UART START ----");
 
         int x1 =0;
@@ -933,12 +1063,12 @@ void loop()
                     uart_data = {0};
             }
         }
-    }
-        stena();
+    
+        //stena();
     //cesta_zpet();
     //hledani_toceni_180();
     //jedu_pro_puk();
-    delay(100000);
+    //delay(100000);
       
 }
     

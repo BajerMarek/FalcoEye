@@ -325,6 +325,7 @@ void jedu_pro_puk()
         //uart_data = {0};
     }
     Serial.println("##### MAM TO #####");
+    turn(-1,7000,2);
     jizda_vpred(50,20000);
 }
 //! m1 - de do boku

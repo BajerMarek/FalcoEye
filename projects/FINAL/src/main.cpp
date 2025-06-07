@@ -43,13 +43,38 @@ int side = 0; //! 0 = modra, 1 =cervena
 
 //! servo 1 - dveře servo 2 - kufr
 
+int stopper =0;
 // ((poloměr + rozteč)*4000) × π × stupně // v metrech
 //#include "robotka.h"
 UARTResult_t uart_data;
 I2cout senzor_data;
+void STOP()
+{
+    auto& man = rb::Manager::get(); // get manager instance as singleton
+    //int distance_1 = senzor_data.m1.RangeDMaxMilliMeter;
+    //int distance_2 = senzor_data.m2.RangeDMaxMilliMeter;
+            Serial.print("Senzor 1 (0x30): ");
+        Serial.print((senzor_data.m1.RangeStatus != 4)  ? String(senzor_data.m1.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
+        Serial.print("\n");
+        Serial.print("Senzor 2 (0x31): ");
+        Serial.print((senzor_data.m2.RangeStatus != 4)  ? String(senzor_data.m2.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
+    man.motor(rb::MotorId::M1).power(-6000);
+    man.motor(rb::MotorId::M4).power(6000);
+    delay(400);
+    man.motor(rb::MotorId::M1).power(0);
+    man.motor(rb::MotorId::M4).power(0);
+    delay(6000);
+    stopper=0;
+    //auto& man = rb::Manager::get(); // vytvoří referenci na man class
+    // if(senzor_data.m1.RangeDMaxMilliMeter > distance_1 || senzor_data.m2.RangeDMaxMilliMeter > distance_2)
+    // {
+
+    // }
+}
 
 void turn(int angle, int rychlost, int lesser = 1)
 {
+    if(stopper) STOP();
     auto& man = rb::Manager::get(); // vytvoří referenci na man class
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
@@ -62,6 +87,7 @@ void turn(int angle, int rychlost, int lesser = 1)
 
     while(abs(M1_pos)<abs(cil)&& abs(M4_pos)<abs(cil))   //! 4000 převod na metry
     {
+        if(stopper) STOP();
         if (cil<0) smer = -1;
         //else smer = 1;
        // man.motor(rb::MotorId::M1).setCurrentPosition(0);
@@ -95,6 +121,7 @@ void turn(int angle, int rychlost, int lesser = 1)
 }
 void jizda_vpred(int cil,int rychlost)
 {
+    if(stopper) STOP();
     auto& man = rb::Manager::get(); // vytvoří referenci na man class
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
@@ -109,6 +136,7 @@ void jizda_vpred(int cil,int rychlost)
     //! zrychlení
     for(int i = 0; i < target-1; i+=a)
     {
+            if(stopper) STOP();
         odhylaka = M1_pos-M4_pos;
         integral += odhylaka; 
         man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
@@ -128,7 +156,7 @@ void jizda_vpred(int cil,int rychlost)
     std::cout<<"M1pos: "<<-1*M1_pos<<" < "<<(super_cil)<<std::endl;
     while(-1*M1_pos<super_cil)   //! 4000 převod na metry
     {
-
+            if(stopper) STOP();
         odhylaka = M1_pos-M4_pos;   // otoceni 1 a 4
         integral += odhylaka; 
 
@@ -159,7 +187,7 @@ void jizda_vpred(int cil,int rychlost)
     
     for(int i = target; i>=0; i-=a)
     {
-        
+            if(stopper) STOP();
         //odhylaka = M4_pos-M1_pos;
         man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
             M1_pos = info.position();
@@ -191,6 +219,38 @@ bool vidim_puk(int side, UARTResult_t uart_data)
     return false;
 }
 
+void detekce_nepritele(int &stop)
+{
+    //auto& man = rb::Manager::get(); // vytvoří referenci na man class
+    while (1)
+    {
+        if((senzor_data.m1.RangeMilliMeter==8191||senzor_data.m1.RangeMilliMeter==4) &&(senzor_data.m2.RangeMilliMeter==8191||senzor_data.m2.RangeMilliMeter==4))
+        {
+            stop =0;
+            delay(50);
+            continue;
+        }
+        if(((senzor_data.m1.RangeMilliMeter <150&&senzor_data.m1.RangeMilliMeter>4)|| (senzor_data.m2.RangeMilliMeter <150&&senzor_data.m2.RangeMilliMeter>4)))
+        {
+            //man.motor(rb::MotorId::M1).setCurrentPosition(0);
+            //man.motor(rb::MotorId::M4).setCurrentPosition(0);
+
+            stop = 1;
+            //Serial.println("---- MAME NEPRITELE ----");
+            sleep(50);
+            //start += 1000;
+        }
+        else
+        {
+            stop = 0;
+            delay(50);
+        } 
+
+        //Serial.printf("---- SLEDUJI A MAM: %d ----",stop);
+    }
+    
+}
+
 // cíl v cm
 // rychlost v rozmezí -32768 až 32768
 double radToDeg(double rad) {
@@ -198,6 +258,7 @@ double radToDeg(double rad) {
 }
 void jedu_pro_puk()
 {
+    if(stopper) STOP();
      Serial.println("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
     auto& man = rb::Manager::get(); // vytvoří referenci na man class
     man.motor(rb::MotorId::M1).power(0);
@@ -209,6 +270,7 @@ void jedu_pro_puk()
 
     while(!(object_center < 195 && object_center > 140))
     {
+        if(stopper) STOP();
         //!vypiš si střed
         // if(uart_data.header ==0)
         // {
@@ -219,6 +281,7 @@ void jedu_pro_puk()
         // }
         for (int i = 0; i < uart_data.leng; i++) 
         {
+            if(stopper) STOP();
             Serial.printf("x1: %d, y1: %d, x2: %d, y2: %d score: %d, color: %d, name: %d\n",
                         uart_data.results_array[i].x1,
                         uart_data.results_array[i].y1,
@@ -235,17 +298,19 @@ void jedu_pro_puk()
                     if (object_center > center) { //! Upraveno pro použití object_center
                                 Serial.println("##### RRRRRRRRRRRRRRRRRRRRRRRRR #####");
                         //turn(1,4500,2);
-                            man.motor(rb::MotorId::M1).power(6000);
-                            man.motor(rb::MotorId::M4).power(6000);
-                        delay(50);
+                         if(stopper) STOP();
+                            man.motor(rb::MotorId::M1).power(5500);
+                            man.motor(rb::MotorId::M4).power(5500);
+                        delay(10);
                     }
                     if (object_center < center) { //! Upraveno pro použití object_center
                         Serial.println("##### LLLLLLLLLLLLLLLLLLL #####");
                         //turn(-1,4500,2);
-                        man.motor(rb::MotorId::M1).power(-6000);
-                        man.motor(rb::MotorId::M4).power(-6000);
+                         if(stopper) STOP();
+                        man.motor(rb::MotorId::M1).power(-5500);
+                        man.motor(rb::MotorId::M4).power(-5500);
                         //delay(100);
-                         delay(50);
+                         delay(10);
                     }
                     // else
                     // {
@@ -265,6 +330,7 @@ void jedu_pro_puk()
 //! m1 - de do boku
 void hledani_toceni_180()
 {
+    if(stopper) STOP();
     auto& man = rb::Manager::get(); // vytvoří referenci na man class
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
@@ -277,7 +343,7 @@ void hledani_toceni_180()
     
     for(int I =0;I<4;I++)
     {
-
+    if(stopper) STOP();
         if (cil<0) smer = -1.3;
         else smer = 1;
         Serial.printf("abs(M1_pos) %d < %f cil && abs(M4_pos) %d < %f cil\n",abs(M1_pos),abs(cil),abs(M4_pos),abs(cil));
@@ -383,6 +449,7 @@ void auto_servo()
 void hledani_vpred(int vzdalenost, int rychlost)
 {
 
+    if(stopper) STOP();
     auto& man = rb::Manager::get(); // vytvoří referenci na man class
     //man.install(rb::ManagerInstallFlags::MAN_DISABLE_MOTOR_FAILSAFE); // install manager
     micros(); // update overflow
@@ -390,7 +457,7 @@ void hledani_vpred(int vzdalenost, int rychlost)
     int P =55, I = 0.01, D =0.25; 
     int target = 10000;
     int a = 500;
-    int stop = 1;
+   // int stop = 1;
 
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
@@ -398,6 +465,7 @@ void hledani_vpred(int vzdalenost, int rychlost)
     //! zrychlení
     for(int i = 0; i < target-1; i+=a)
     {
+    if(stopper) STOP();
         Serial.print("Senzor 1 (0x30): ");
         Serial.print((senzor_data.m1.RangeStatus != 4)  ? String(senzor_data.m1.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
         Serial.print("\n");
@@ -427,10 +495,11 @@ void hledani_vpred(int vzdalenost, int rychlost)
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
     while(abs(M1_pos)<50*40)   //! sem příjde podmínka na najití puku
-    {
+    {    
+        if(stopper) STOP();
         if(vidim_puk(side,uart_data))
         {
-            stop =0;
+            //stop =0;
             break;
         }
         Serial.print("Senzor 1 (0x30): ");
@@ -837,11 +906,12 @@ void set_up_peripherals()
 
 void homologace()
 {
+    auto& man = rb::Manager::get(); // get manager instance as singleton
     hledani_vpred(50,20000);
-    delay(6000);
-    turn(180,10000);
-
-        auto& man = rb::Manager::get(); // vytvoří referenci na man class
+    //delay(6000);
+    turn(115,10000);
+if(stopper) STOP();
+   // auto& man = rb::Manager::get(); // vytvoří referenci na man class
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
 
@@ -850,10 +920,36 @@ void homologace()
     int P =110, I = 0.01, D =0.5; 
     int target = 20000;
     int a = 500;
-    //int super_cil = cil*40 - rampa_vzdalenost;
-    while(senzor_data.m2.RangeDMaxMilliMeter>150)   //! 4000 převod na metry
-    {
 
+    //! zrychlení
+    for(int i = 0; i < target-1; i+=a)
+    {
+            if(stopper) STOP();
+        odhylaka = M1_pos-M4_pos;
+        integral += odhylaka; 
+        man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
+            M1_pos = info.position();
+        });
+        man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor& info) {
+            M4_pos = -info.position();
+        });
+        man.motor(rb::MotorId::M1).power(i+odhylaka*110);
+        man.motor(rb::MotorId::M4).power(-i);
+        delay(10);
+        //! musím zjistit jakou vzdálenost tímto ujedu nasledně ji z dvojnasobit a odečíst do požadované vzdálenosti
+    }
+    integral =0;    //###
+    man.motor(rb::MotorId::M1).setCurrentPosition(0);
+    man.motor(rb::MotorId::M4).setCurrentPosition(0);
+
+    while(senzor_data.m2.RangeMilliMeter>300)   //! 4000 převod na metry
+    {
+                Serial.print("Senzor 1 (0x30): ");
+        Serial.print((senzor_data.m1.RangeStatus != 4)  ? String(senzor_data.m1.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
+        Serial.print("\n");
+        Serial.print("Senzor 2 (0x31): ");
+        Serial.print((senzor_data.m2.RangeStatus != 4)  ? String(senzor_data.m2.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
+            if(stopper) STOP();
         odhylaka = M1_pos-M4_pos;   // otoceni 1 a 4
         integral += odhylaka; 
 
@@ -880,74 +976,247 @@ void homologace()
         last_odchylka = odhylaka;
         
     }
-    turn(-180,10000);
+    //! zpomalení
+    
+    for(int i = target; i>=0; i-=a)
+    {
+            if(stopper) STOP();
+        //odhylaka = M4_pos-M1_pos;
+        man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
+            M1_pos = info.position();
+        });
+        man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor& info) {
+            M4_pos = -info.position();
+        });
+        man.motor(rb::MotorId::M1).power(i+odhylaka*0.01);
+        man.motor(rb::MotorId::M4).power(-i);
+        delay(10);
+        //if(odhylaka>1000) odhylaka = 0;
+        //std::cout<<"I: "<<i<<std::endl;
+    }
+    man.motor(rb::MotorId::M1).setCurrentPosition(0);
+    man.motor(rb::MotorId::M4).setCurrentPosition(0);
+    man.motor(rb::MotorId::M1).power(0);
+    man.motor(rb::MotorId::M4).power(0);
+    odhylaka = 0;
+
+
+    turn(-130,10000);
     man.stupidServo(1).setPosition(-2.0f); 
     delay(3000);
 
     man.motor(rb::MotorId::M1).power(10000);
-    man.motor(rb::MotorId::M4).power(10000);
+    man.motor(rb::MotorId::M4).power(-10000);
     delay(3000);
+    man.motor(rb::MotorId::M1).power(0);
+    man.motor(rb::MotorId::M4).power(0);
     
 }
 
 void setup() {
     Serial.begin(115200);
-    printf("Init manager instance\n");
+//     printf("Init manager instance\n");
     auto& man = rb::Manager::get(); // get manager instance as singleton
-    Serial.println("instance done");
-    man.install(rb::ManagerInstallFlags::MAN_DISABLE_MOTOR_FAILSAFE); // install manager
-    Serial.println("stáhnuto done");
-    micros(); // update overflow
-    Serial.println("micros done");
-    delay(200);
+//     Serial.println("instance done");
+//     man.install(rb::ManagerInstallFlags::MAN_DISABLE_MOTOR_FAILSAFE); // install manager
+//     Serial.println("stáhnuto done");
+//     micros(); // update overflow
+//     Serial.println("micros done");
+//     delay(200);
 
     
-    while(1)
-    {
-        Serial.println("---- CEKANI NA START ----");
-        if(man.buttons().right())
-        {
+//     while(1)
+//     {
+//         Serial.println("---- CEKANI NA START ----");
+//         if(man.buttons().right())
+//         {
 
-            Serial.println("---- START SET UP ----");
+//             Serial.println("---- START SET UP ----");
             
-            set_up_peripherals();
-            delay(200);
+//             set_up_peripherals();
+//             delay(200);
             
-            uart_set_up();
-            delay(200);
+//             uart_set_up();
+//             delay(200);
             
-            Serial.println("servo test start");  
+//             Serial.println("servo test start");  
             
-            //servo_dance();
-            Serial.println("servo test done");
+//             //servo_dance();
+//             Serial.println("servo test done");
             
-            // Serial.println("Motor test start");
-            // man.motor(rb::MotorId::M1).power(-10000);
-            // man.motor(rb::MotorId::M4).power(10000);
-            // delay(2000);
-            // man.motor(rb::MotorId::M1).power(10000);
-            // man.motor(rb::MotorId::M4).power(-10000);
-            // delay(2000);
-            // man.motor(rb::MotorId::M1).power(0);
-            // man.motor(rb::MotorId::M4).power(0);
-            // Serial.println("Motor test done");
+//             // Serial.println("Motor test start");
+//             // man.motor(rb::MotorId::M1).power(-10000);
+//             // man.motor(rb::MotorId::M4).power(10000);
+//             // delay(2000);
+//             // man.motor(rb::MotorId::M1).power(10000);
+//             // man.motor(rb::MotorId::M4).power(-10000);
+//             // delay(2000);
+//             // man.motor(rb::MotorId::M1).power(0);
+//             // man.motor(rb::MotorId::M4).power(0);
+//             // Serial.println("Motor test done");
             
-            //! zapínání vláken
+//             //! zapínání vláken
         
-            std::thread uart_thread (get_data, uart_data);
-            uart_thread.detach();
-            Serial.println("uart vlakno done");
+//             std::thread uart_thread (get_data, uart_data);
+//             uart_thread.detach();
+//             Serial.println("uart vlakno done");
         
-            std::thread i2c_thread(get_senzor_data);
-            i2c_thread.detach();
-            Serial.println("i2c vlakno done");
-            //while(!(senzor_data.m1.RangeDMaxMilliMeter >0 && senzor_data.m2.RangeDMaxMilliMeter> 0)) delay(50);
-            Serial.println("---- START ----");
-            break;
+//             std::thread i2c_thread(get_senzor_data);
+//             i2c_thread.detach();
+//             Serial.println("i2c vlakno done");
+
+//             std::thread servo_thread(auto_servo);
+//             servo_thread.detach();
+
+//             //while(!(senzor_data.m1.RangeDMaxMilliMeter >0 && senzor_data.m2.RangeDMaxMilliMeter> 0)) delay(50);
+//             Serial.println("---- START ----");
+//             break;
+//         }
+//         delay(200);
+//     }
+
+
+//     // while(1)
+//     // {
+//     //     Serial.printf("%d",man.buttons().right());
+//     //     if(man.buttons().right())
+//     //     {
+//     //         Serial.println("*******************************");
+//     //         delay(1000);
+//     //         //turn(180,10000);
+//     //         //man.motor(rb::MotorId::M1).power(16000);
+//     //         //jizda_vpred(50,20000);
+//     //         //stena();
+//     //         servo_dance();
+//     //     }
+//     //     delay(200);
+//     // }
+
+// }
+
+    
+        delay(1000);
+        //turn(1,1);
+        //start_time=millis();
+        Serial.println("START");
+        //rkConfig cfg;
+        //rkSetup(cfg);
+        Serial.println("RK hotovo");
+        
+        Serial.begin(115200);
+        while (! Serial) {
+        delay(1);  //! dat vedet, co se stalo 
         }
+        
+        //Wire.begin(21, 22);  // SDA = GPIO21, SCL = GPIO22
+        Wire.begin(21, 22);
+        delay(10);
+        Serial.println("Wire (I2C) inicializováno na SDA=21, SCL=22");
+        
+        pinMode(XSHUT1, OUTPUT);
+        pinMode(XSHUT2, OUTPUT);
+        
+        digitalWrite(XSHUT1, LOW);
+        digitalWrite(XSHUT2, LOW);
+        delay(20);
+        
+        digitalWrite(XSHUT2, HIGH);
+        delay(10);
+        //scan_i2c();
+        
+        
+        Serial.println("zacina inicializace senzoru 2 #############");
+        delay(100);
+        if (!sensor2.begin()) {
+          Serial.println("Nepodařilo se spustit senzor 2");
+          while (1);
+        }
+        delay(100);
+        scan_i2c();
+        
+        //writeRegister(0x30,0x8A,0x31);
+        sensor2.setAddress(0x31);
+        scan_i2c();
+        
+        
+        Serial.println("zacina inicializace senzoru 1 #############");
+        digitalWrite(XSHUT1, HIGH);
+            if (!sensor1.begin()) {
+          Serial.println("Nepodařilo se spustit senzor 1");
+          while (1);
+        }
+        Serial.println("Podařilo se spustit senzor 1");
+        scan_i2c();
+        sensor1.setAddress(0x30);
+        // writeRegister(0x29,0x8A,0x30);
+        scan_i2c();   
+        
+        pinMode(TCS_SDA_pin, PULLUP);
+        pinMode(TCS_SCL_pin, PULLUP);
+        Wire1.begin(TCS_SDA_pin, TCS_SCL_pin, 100000); // pro barevny senzor 
+        
+        tcs.begin(0x29,&Wire1);
+        if (!tcs.begin(0x29,&Wire1)) {
+            Serial.println("Barevný senzor TCS34725 nebyl nalezen!");
+            while (1);
+        } else {
+            Serial.println("TCS34725 detekován.");
+        }
+        scan_i2c();
+        
+        Serial.println("RB3204-RBCX\n");
+        printf("RB3204-RBCX\n");
+        delay(50);
+        printf("Init manager\n");
+        
+        
+        //auto& man = rb::Manager::get(); // get manager instance as singleton
+        Serial.println("instance done");
+        man.install(rb::ManagerInstallFlags::MAN_DISABLE_MOTOR_FAILSAFE); // install manager
+        Serial.println("stáhnuto done");
+        
+        micros(); // update overflow
+        Serial.println("micros done");
+        
         delay(200);
-    }
+        
+        uart_set_up();
+        
+        
+        //delay(1000);
+        
+        
+        //lox.begin();
+        delay(200);
+        
+        //writeRegister(VL53L0X_DEFAULT_ADDR, I2C_SLAVE_DEVICE_ADDRESS, VL53L0X_NEW_ADDR);
+        //delay(200);
+        
+        // Inicializace senzoru na nové adrese
+        
+        // Serial.println("Senzor VL53L0X uspesne inicializovan.");
+        // tcs.begin(0x29);
+        
+        //uart_thread_function();
+        
+        std::thread uart_thread (get_data, uart_data);
+        uart_thread.detach();
+        
+        std::thread i2c_thread(get_senzor_data);
+        i2c_thread.detach();
+        
+        std::thread servo_thread(auto_servo);
+        servo_thread.detach();
+        
+        std::thread detekce_thread(detekce_nepritele,std::ref(stopper));
+        detekce_thread.detach();
+        delay(1000);
+        Serial.println("start");
 
+
+
+
+    //servo_dance();
 
     // while(1)
     // {
@@ -1000,6 +1269,7 @@ void loop()
     // }
     //cervena();
     if(senzor_data.m1.RangeMilliMeter>0 && senzor_data.m2.RangeMilliMeter>0) homologace();
+    delay(10000);
     Serial.printf("red: %f, green: %f, blue: %f",senzor_data.r,senzor_data.g,senzor_data.b);
     Serial.print("######################\n");
     

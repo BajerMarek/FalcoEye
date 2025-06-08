@@ -617,12 +617,12 @@ void auto_servo()
     }
 
 }
-void detekce_nepritele(int stopper)
+void detekce_nepritele(int &stop)
 {
     auto& man = rb::Manager::get(); // vytvoří referenci na man class
     while (1)
     {
-        if(((senzor_data.m1.RangeMilliMeter <150)|| (senzor_data.m2.RangeMilliMeter <150))&&!(stopper))
+        if(((senzor_data.m1.RangeMilliMeter <150)|| (senzor_data.m2.RangeMilliMeter <150))&&!(stop))
         {
             //man.motor(rb::MotorId::M1).setCurrentPosition(0);
             //man.motor(rb::MotorId::M4).setCurrentPosition(0);
@@ -814,7 +814,7 @@ void loop()
     //     Serial.printf("---- avg %f ---- (avg/9.5)  %f ---- (avg/4.1) %f ----\n",avg_sen, (avg_sen/9.5),(avg_sen/4.1));
     //     if((diff_sen>(avg_sen/9.5))&&(diff_sen<(avg_sen/4.1))) Serial.printf("---- JSEM ROVNE ----\n");
 
-    jizda_vpred(50,20000);
+    //jizda_vpred(50,20000);
     Serial.println("---- UART START ----");
 
     int x1 =0;

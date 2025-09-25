@@ -43,15 +43,16 @@ int stopper =0;
 //#include "robotka.h"
 UARTResult_t uart_data;
 I2cout senzor_data;
+//zastavý program na 6000ms
 void STOP()
 {
     auto& man = rb::Manager::get(); // get manager instance as singleton
 
-            Serial.print("Senzor 1 (0x30): ");
-        Serial.print((senzor_data.m1.RangeStatus != 4)  ? String(senzor_data.m1.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
-        Serial.print("\n");
-        Serial.print("Senzor 2 (0x31): ");
-        Serial.print((senzor_data.m2.RangeStatus != 4)  ? String(senzor_data.m2.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
+    Serial.print("Senzor 1 (0x30): ");
+    Serial.print((senzor_data.m1.RangeStatus != 4)  ? String(senzor_data.m1.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
+    Serial.print("\n");
+    Serial.print("Senzor 2 (0x31): ");
+    Serial.print((senzor_data.m2.RangeStatus != 4)  ? String(senzor_data.m2.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
     man.motor(rb::MotorId::M1).power(0);
     man.motor(rb::MotorId::M4).power(0);
     delay(6000);
@@ -66,17 +67,17 @@ void jizda_vpred(int cil,int rychlost)
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
 
-   //m1 musí být -
+   //M4 má zápornou hodnotu
     int M1_pos = 0, M4_pos = 0, odhylaka = 0, integral = 0, last_odchylka =0, rampa_vzdalenost = 640; //součet dvou ramp 
     int P =110, I = 0.01, D =0.5; 
     int target = rychlost;
     int a = 500;
-    int super_cil = cil*40 - rampa_vzdalenost;
+    float cil = cil*3.7 - rampa_vzdalenost;
 
-    //! zrychlení
+    //! zrychlení - rampa
     for(int i = 0; i < target-1; i+=a)
     {
-            if(stopper) STOP();
+        if(stopper) STOP();
         odhylaka = M1_pos-M4_pos;
         integral += odhylaka; 
         man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
@@ -93,10 +94,10 @@ void jizda_vpred(int cil,int rychlost)
     integral =0;    //###
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
-    std::cout<<"M1pos: "<<-1*M1_pos<<" < "<<(super_cil)<<std::endl;
-    while(-1*M1_pos<super_cil)   //! 4000 převod na metry
+    std::cout<<"M1pos: "<<M1_pos<<" < "<<cil<<std::endl;
+    while(abs(M1_pos)<cil)   //! 3,7 převod na metry
     {
-            if(stopper) STOP();
+        if(stopper) STOP();
         odhylaka = M1_pos-M4_pos;   // otoceni 1 a 4
         integral += odhylaka; 
 
@@ -112,22 +113,15 @@ void jizda_vpred(int cil,int rychlost)
         });
 
         delay(50);
-        //Serial.printf("odhylaka: %d\n",odhylaka);
         std::cout<<"M1: "<<M1_pos<<" M4: "<<M4_pos<<std::endl;
-        // if(odhylaka>1000 || odhylaka<-1000)
-        // {
-        //         man.motor(rb::MotorId::M1).setCurrentPosition(0);
-        //         man.motor(rb::MotorId::M4).setCurrentPosition(0);
-        //         odhylaka =0;
-        // }
         last_odchylka = odhylaka;
         
     }
+
     //! zpomalení
-    
     for(int i = target; i>=0; i-=a)
     {
-            if(stopper) STOP();
+        if(stopper) STOP();
         //odhylaka = M4_pos-M1_pos;
         man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
             M1_pos = info.position();
@@ -147,7 +141,7 @@ void jizda_vpred(int cil,int rychlost)
     man.motor(rb::MotorId::M4).power(0);
     odhylaka = 0;
 }
-
+// vrátí true, když barva najitého puku je stejná jako strana
 bool vidim_puk(int side, UARTResult_t uart_data)
 {
     for(int i = 0; i< uart_data.leng;i++)
@@ -158,10 +152,9 @@ bool vidim_puk(int side, UARTResult_t uart_data)
         }
     return false;
 }
-
+// Naměříly senzor m1 nebo m2 hodnotu která je menší jak 100 nebo maximální 8191 nebo 4 -> chyba měření
 void detekce_nepritele(int &stop)
 {
-    //auto& man = rb::Manager::get(); // vytvoří referenci na man class
     while (1)
     {
         if((senzor_data.m1.RangeMilliMeter==8191||senzor_data.m1.RangeMilliMeter==4) &&(senzor_data.m2.RangeMilliMeter==8191||senzor_data.m2.RangeMilliMeter==4))
@@ -172,30 +165,21 @@ void detekce_nepritele(int &stop)
         }
         if(((senzor_data.m1.RangeMilliMeter <100&&senzor_data.m1.RangeMilliMeter>4)|| (senzor_data.m2.RangeMilliMeter <300&&senzor_data.m2.RangeMilliMeter>4)))
         {
-            //man.motor(rb::MotorId::M1).setCurrentPosition(0);
-            //man.motor(rb::MotorId::M4).setCurrentPosition(0);
-
             stop = 1;
-            //Serial.println("---- MAME NEPRITELE ----");
             sleep(50);
-            //start += 1000;
         }
         else
         {
             stop = 0;
             delay(50);
         } 
-
-        //Serial.printf("---- SLEDUJI A MAM: %d ----",stop);
     }
-    
 }
-
-// cíl v cm
-// rychlost v rozmezí -32768 až 32768
+//Převod na radiány
 double radToDeg(double rad) {
     return rad * 180.0 / M_PI;
 }
+//puk byl spatřen a pokd není ve středu robot se bude točit kolem do kola dokuďn nebude uprostřed
 void jedu_pro_puk()
 {
     if(stopper) STOP();
@@ -209,31 +193,14 @@ void jedu_pro_puk()
     int object_center =1;
     int zacatek_time = 0;
 
-
     while(!(object_center < 195 && object_center > 140))
     {
-
         if(stopper) STOP();
         if(uart_data.header == 0)
         {
             zacatek_time +=10;
             if(zacatek_time>=3000) break;
         }
-        
-        //!vypiš si střed
-        // if(uart_data.header ==0)
-        // {
-        //     man.motor(rb::MotorId::M1).power(7000);
-        //     man.motor(rb::MotorId::M4).power(-7000);
-        //     delay(1000);
-
-        // }
-        // Serial.printf("##### millis()-zacatek_time: %d #####",millis()-zacatek_time);
-        // if(millis()-zacatek_time >=konec_time)
-        // {
-        //     break;
-
-        // }
         
         for (int i = 0; i < uart_data.leng; i++) 
         {
@@ -268,23 +235,14 @@ void jedu_pro_puk()
                         //delay(100);
                          delay(10);
                     }
-                    // else
-                    // {
-                    //     Serial.println("---- NIC NEVIDIM ----");
-                    //     //man.motor(rb::MotorId::M1).power(-2000);
-                    //     //man.motor(rb::MotorId::M4).power(2000);
-                    //     delay(100);
-                    // }
             
         }
         delay(10);
-        //Serial.println("##### MAM TO #####");
-        //uart_data = {0};
     }
     if(zacatek_time<3000)
     {
         Serial.println("##### MAM TO #####");
-        turn(-1,7000,2);
+        toceni_dle_uhlu(-1,7000);
         jizda_vpred(50,20000);
         
     }
@@ -292,6 +250,7 @@ void jedu_pro_puk()
     //!jinak konec
 }
 //! m1 - de do boku
+
 void hledani_toceni_180()
 {
     if(stopper) STOP();
@@ -303,15 +262,15 @@ void hledani_toceni_180()
     float smer= 1.0;
     int M4_pos = 0, M1_pos = 0, odhylaka = 0, integral = 0;// last_odchylka =0, rampa_vzdalenost = 640;
     //int P =110, I = 0.01, D =0.5; 
-    float cil = (((roztec+r_kola))*PI*angle/2)/40;    // roztec a kolo jsou v mm
-    
+    float cil = ((PI*roztec)/(360/angle))*3.7;    // roztec a kolo jsou v mm
+
     for(int I =0;I<4;I++)
     {
     if(stopper) STOP();
         if (cil<0) smer = -1.2;
         else smer = 1;
         Serial.printf("abs(M1_pos) %d < %f cil && abs(M4_pos) %d < %f cil\n",abs(M1_pos),abs(cil),abs(M4_pos),abs(cil));
-        while(abs(M1_pos)<abs(cil)&& abs(M4_pos)<abs(cil))    //! 4000 převod na metry
+        while((abs(M1_pos)<abs(cil))||(abs(M4_pos)<abs(cil))) 
         {
             if(vidim_puk(side,uart_data)) 
             {
@@ -354,10 +313,9 @@ void hledani_toceni_180()
         if(I==1)  cil = -1*cil;
     }
 
-
     odhylaka = 0, integral = 0;
 }
-
+//! Servo pro odhazování puků
 void auto_servo()
 {
     auto& man = rb::Manager::get(); // vytvoří referenci na man class
@@ -410,12 +368,11 @@ void auto_servo()
     }
 
 }
+
 void hledani_vpred(int vzdalenost, int rychlost)
 {
-
     if(stopper) STOP();
     auto& man = rb::Manager::get(); // vytvoří referenci na man class
-    //man.install(rb::ManagerInstallFlags::MAN_DISABLE_MOTOR_FAILSAFE); // install manager
     micros(); // update overflow
     int M1_pos = 0, M4_pos = 0, odhylaka = 0, integral = 0, last_odchylka =0; //součet dvou ramp 
     int P =55, I = 0.01, D =0.25; 
@@ -458,7 +415,7 @@ void hledani_vpred(int vzdalenost, int rychlost)
     }
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
-    while(abs(M1_pos)<100*40)   //! sem příjde podmínka na najití puku
+    while(abs(M1_pos)<vzdalenost*3.7)   //! sem příjde podmínka na najití puku
     {    
         if(stopper) STOP();
         if(vidim_puk(side,uart_data))
@@ -489,14 +446,7 @@ void hledani_vpred(int vzdalenost, int rychlost)
         });
 
         delay(50);
-        //Serial.printf("odhylaka: %d\n",odhylaka);
         std::cout<<"M1: "<<M1_pos<<" M4: "<<M4_pos<<std::endl;
-        // if(odhylaka>1000 || odhylaka<-1000)
-        // {
-        //         man.motor(rb::MotorId::M1).setCurrentPosition(0);
-        //         man.motor(rb::MotorId::M4).setCurrentPosition(0);
-        //         odhylaka =0;
-        // }
         last_odchylka = odhylaka;
     }
     Serial.println("MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM");
@@ -514,19 +464,11 @@ void get_data(UARTResult_t vstup)
         if( uart_recive(vstup))
         {
             memcpy(&uart_data,&vstup,sizeof (vstup));
-            //delay(10);
-            //Serial.println("-----------Přečten-------------------");
-           
-           
-        // Serial.printf("Header: %d, Length: %d, Sum: %d\n",
-        //     uart_data.header, uart_data.leng, uart_data.suma);
        }
        else
        {
-        //vstup.header = 0;
         vstup = {0};
        }
-
        delay(10);
     }
 }
@@ -535,6 +477,7 @@ void get_senzor_data()
 {
     while(1)
     {
+    //! nastavení barevného senzoru !//
     // pinMode(TCS_SDA_pin, PULLUP);
 
     // pinMode(TCS_SCL_pin, PULLUP);
@@ -558,6 +501,7 @@ void get_senzor_data()
     //  senzor_data.b = b;
     //  delay(10);
     tcs.getRGB(&senzor_data.r,&senzor_data.g,&senzor_data.b);
+    //! nastavení barevného senzoru !//
 
     // dalkové senzory
      sensor1.rangingTest(&senzor_data.m1, false);
@@ -566,6 +510,7 @@ void get_senzor_data()
     }
 }
 
+//! Skoužka serv před začátkem
 void servo_dance()
 {
     auto& man = rb::Manager::get(); // vytvoří referenci na man class
@@ -585,8 +530,6 @@ void servo_dance()
     
     man.stupidServo(1).setPosition(-0.1f);
     delay(3000);
-    //rkServosSetPosition(1, ); // Servo 1 nastaví na 180°
-    //delay(1000);
 }
 
 //točí se na základě času
@@ -614,8 +557,8 @@ void tocka(int smer, int cas)   // smer 1 -> pravo -1 -> levo
     //int target = 10000;
     //int a = 500;
     
-    //for(int i =0; i<cas;i+=50)
-    //{
+    for(int i =0; i<cas;i+=1)
+    {
         man.motor(rb::MotorId::M1).power(target*smer);
         man.motor(rb::MotorId::M4).power(target*smer);// i míň se to kvedla 50 -55 je ok  bez derivace )poslední čast na 2,5 m 3cm odchylka
         //! získá encodery z motoru
@@ -629,7 +572,7 @@ void tocka(int smer, int cas)   // smer 1 -> pravo -1 -> levo
 
         delay(cas);
 
-    //}
+    }
     for(int i = 0; i > target; i-=a)
     {
         man.motor(rb::MotorId::M1).power(i*smer);
@@ -641,11 +584,12 @@ void tocka(int smer, int cas)   // smer 1 -> pravo -1 -> levo
     man.motor(rb::MotorId::M4).power(0);
 
 }
+
 //! najede na stěnu
+//nutnost upravit tneto kod protože jsem zpravil trun funkci
 void stena()
 {
     auto& man = rb::Manager::get(); // vytvoří referenci na man class
-    //man.install(rb::ManagerInstallFlags::MAN_DISABLE_MOTOR_FAILSAFE); // install manager
     micros(); // update overflow
     int M1_pos = 0, M4_pos = 0, odhylaka = 0, integral = 0, last_odchylka =0; //součet dvou ramp 
     int P =55, I = 0.01, D =0.25; 
@@ -708,23 +652,13 @@ void stena()
         });
 
         delay(50);
-        //Serial.printf("odhylaka: %d\n",odhylaka);
-        std::cout<<"M1: "<<M1_pos<<" M4: "<<M4_pos<<std::endl;
-        // if(odhylaka>1000 || odhylaka<-1000)
-        // {
-        //         man.motor(rb::MotorId::M1).setCurrentPosition(0);
-        //         man.motor(rb::MotorId::M4).setCurrentPosition(0);
-        //         odhylaka =0;
-        // }
-  
+        std::cout<<"M1: "<<M1_pos<<" M4: "<<M4_pos<<std::endl;  
         last_odchylka = odhylaka;
 
     }
     odhylaka = 0, integral = 0;
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
-    //man.motor(rb::MotorId::M1).power(0);
-    //man.motor(rb::MotorId::M4).power(0);
     //! doje ke stěně a jedne ze senzoru míří na stěnu
 
     while(senzor_data.m2.RangeMilliMeter<460)
@@ -741,14 +675,8 @@ void stena()
           man.motor(rb::MotorId::M1).power(27000);   //! levý motor
         man.motor(rb::MotorId::M4).power(-32000);
         delay(1500);
-    //jizda_vpred(50,22000);
 }
     
-void corner ()
-{
-    turn(70,320000);     //! zjistit že se umí otočit u stěny jstly ne předělat funkci
-}
-
 void cesta_zpet()
 {
     auto& man = rb::Manager::get(); // get manager instance as singleton
@@ -773,50 +701,28 @@ void cesta_zpet()
     Serial.print("Senzor 2 (0x31): ");
     Serial.print((senzor_data.m2.RangeStatus != 4)  ? String(senzor_data.m2.RangeMilliMeter) + " mm\t" : "Mimo rozsah\t");
     Serial.print("\n");
-        // if((senzor_data.m2.RangeMilliMeter<300) &&(senzor_data.m1.RangeMilliMeter<150))
-        // {
-        //     corner();
-        // }
 
-        // while(1)
-        // {
-        //     Serial.println("---- KONEC ----");
-        //     delay(300);
-        // }
-    
-        //if(stopper) STOP();
-        man.motor(rb::MotorId::M1).power(27000);   //! levý motor
-        man.motor(rb::MotorId::M4).power(-32000);
-        delay(50);
-        // if(senzor_data.m2.RangeMilliMeter<400)
-        // {
-        //     man.motor(rb::MotorId::M1).power(0);   //! levý motor
-        //     man.motor(rb::MotorId::M4).power(0);
-        //     delay(3000);
-        // }
+    man.motor(rb::MotorId::M1).power(27000);   //! levý motor
+    man.motor(rb::MotorId::M4).power(-32000);
+    delay(50);
+
     }
 
         man.motor(rb::MotorId::M1).brake(27000);   //! levý motor
         man.motor(rb::MotorId::M4).brake(32000);
         delay(1000);
 
-        //if((side && senzor_data.r>150)||(!(side) && ((senzor_data.g== 98.076927)||(senzor_data.g== 91.071434))))
-        //{
             //! otevření kufru
             man.stupidServo(1).setPosition(-2.0f); 
             delay(2000);
             //! popojezd v místě konce
             //turn(50,10000);
-            turn(70,20000);
-            // man.motor(rb::MotorId::M1).power(20000);
-            // man.motor(rb::MotorId::M4).power(20000);
-            // delay(1500);
+            toceni_dle_uhlu(70,20000);
+
             man.motor(rb::MotorId::M1).power(0);
             man.motor(rb::MotorId::M4).power(0);
- 
 
             //! odjezd z pole 
-            //turn(30,10000);
             for(int i =0;i<100;i++)
             {
                 man.motor(rb::MotorId::M1).power(10000);
@@ -829,14 +735,14 @@ void cesta_zpet()
             man.stupidServo(1).setPosition(-2.0f); 
             delay(3000);
 
-            //!zavření kufru´ř´ř´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´
+            //!zavření kufru
             man.stupidServo(1).setPosition(-0.1f); // -5 -90 -5
             delay(300000);
         //}
 }
+//inicializace senzorů
 void set_up_peripherals()
 {
-        
     //start_time=millis();
     Serial.println("---- Začíná set up ----");
     Serial.println("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
@@ -893,11 +799,9 @@ void set_up_peripherals()
         Serial.println("TCS34725 detekován.");
     }
 
-
-
     Serial.println("---- VSE OK ----");
-    //scan_i2c();
 }
+//Hledání během otáčení
 void hledani_90(int speed, float smer = 1.0)
 {
     Serial.printf("--------------------------------------------------------------------");
@@ -922,9 +826,6 @@ void hledani_90(int speed, float smer = 1.0)
                 break;
             }
 
-           // man.motor(rb::MotorId::M1).setCurrentPosition(0);
-            //man.motor(rb::MotorId::M4).setCurrentPosition(0);
-    
             man.motor(rb::MotorId::M1).power(smer*speed);
             man.motor(rb::MotorId::M4).power(smer*speed);// i míň se to kvedla 50 -55 je ok  bez derivace )poslední čast na 2,5 m 3cm odchylka
             //! získá encodery z motoru
@@ -950,31 +851,22 @@ void hledani_90(int speed, float smer = 1.0)
         M4_pos = 0, M1_pos = 0;
 }
         
-
+//kod na homologaci
 void homologace()
 {
     auto& man = rb::Manager::get(); // get manager instance as singleton
-            //     man.motor(rb::MotorId::M1).power(20000);
-            // man.motor(rb::MotorId::M4).power(20000);
-            // delay(2000);
-            // delay(10000);
+
     hledani_vpred(100,20000);
     delay(3000);
-    // man.motor(rb::MotorId::M1).setCurrentPosition(0);
-    // man.motor(rb::MotorId::M4).setCurrentPosition(0);
-    // man.motor(rb::MotorId::M1).power(0);
-    // man.motor(rb::MotorId::M4).power(0);
-    // delay(1000);
+
     hledani_90(5500,1.0);
     cesta_zpet();
 
-    //delay(6000);
-    //!turn(130,10000);
     if(stopper) STOP();
     delay(180000);
 
 }
-
+//otáčení dle zadaného uhlu -. přesnost do několika °
 void toceni_dle_uhlu(int angle, int rychlost)
 {
     auto& man = rb::Manager::get(); // vytvoří referenci na man class
@@ -989,7 +881,7 @@ void toceni_dle_uhlu(int angle, int rychlost)
     int M4_pos = 0, odhylaka = 0, integral = 0;// last_odchylka =0, rampa_vzdalenost = 640;
     //int P =110, I = 0.01, D =0.5; 
     float cil = 0;
-    cil = ((PI*roztec)/(360/angle))*3,7;    // roztec a kolo jsou v mm
+    cil = ((PI*roztec)/(360/angle))*3.7;    // roztec a kolo jsou v mm //!nevím jestli je tam 3,7 nebo 3.7
     Serial.println("VSE OK");
     delay(200);
     while((abs(M1_pos)<abs(cil))||(abs(M4_pos)<abs(cil)))   //! 4000 převod na metry

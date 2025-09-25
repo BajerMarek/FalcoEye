@@ -102,19 +102,19 @@ Serial.println("############# zacina inicializace #############");
   Wire1.begin(TCS_SDA_pin, TCS_SCL_pin, 100000); // pro predni senzor 
 
 
-  tcs.begin(0x29,&Wire1);
-  if (!tcs.begin(0x29,&Wire1)) {
-    Serial.println("Barevný senzor TCS34725 nebyl nalezen!");
-    while (1);
-  } else {
-    Serial.println("TCS34725 detekován.");
-  }
+  // tcs.begin(0x29,&Wire1);
+  // if (!tcs.begin(0x29,&Wire1)) {
+  //   Serial.println("Barevný senzor TCS34725 nebyl nalezen!");
+  //   while (1);
+  // } else {
+  //   Serial.println("TCS34725 detekován.");
+  // }
     scan_i2c();
 }      
 
 void loop()
 {
-    cervena();
+    //cervena();
     Serial.print("######################\n");
     VL53L0X_RangingMeasurementData_t m1, m2;
     

@@ -1013,12 +1013,12 @@ void hledani_90(int speed, float smer = 1.0)
 
 void homologace()
 {
-    auto& man = rb::Manager::get(); // get manager instance as singleton
+    //auto& man = rb::Manager::get(); // get manager instance as singleton
             //     man.motor(rb::MotorId::M1).power(20000);
             // man.motor(rb::MotorId::M4).power(20000);
             // delay(2000);
             // delay(10000);
-    hledani_vpred(100,20000);
+    //!hledani_vpred(100,20000);
     delay(3000);
     // man.motor(rb::MotorId::M1).setCurrentPosition(0);
     // man.motor(rb::MotorId::M4).setCurrentPosition(0);
@@ -1039,88 +1039,7 @@ void setup() {
     Serial.begin(115200);
 //     printf("Init manager instance\n");
     auto& man = rb::Manager::get(); // get manager instance as singleton
-//     Serial.println("instance done");
-//     man.install(rb::ManagerInstallFlags::MAN_DISABLE_MOTOR_FAILSAFE); // install manager
-//     Serial.println("stáhnuto done");
-//     micros(); // update overflow
-//     Serial.println("micros done");
-//     delay(200);
 
-    
-//     while(1)
-//     {
-//         Serial.println("---- CEKANI NA START ----");
-//         if(man.buttons().right())
-//         {
-
-//             Serial.println("---- START SET UP ----");
-            
-//             set_up_peripherals();
-//             delay(200);
-            
-//             uart_set_up();
-//             delay(200);
-            
-//             Serial.println("servo test start");  
-            
-//             //servo_dance();
-//             Serial.println("servo test done");
-            
-//             // Serial.println("Motor test start");
-//             // man.motor(rb::MotorId::M1).power(-10000);
-//             // man.motor(rb::MotorId::M4).power(10000);
-//             // delay(2000);
-//             // man.motor(rb::MotorId::M1).power(10000);
-//             // man.motor(rb::MotorId::M4).power(-10000);
-//             // delay(2000);
-//             // man.motor(rb::MotorId::M1).power(0);
-//             // man.motor(rb::MotorId::M4).power(0);
-//             // Serial.println("Motor test done");
-            
-//             //! zapínání vláken
-        
-//             std::thread uart_thread (get_data, uart_data);
-//             uart_thread.detach();
-//             Serial.println("uart vlakno done");
-        
-//             std::thread i2c_thread(get_senzor_data);
-//             i2c_thread.detach();
-//             Serial.println("i2c vlakno done");
-
-//             std::thread servo_thread(auto_servo);
-//             servo_thread.detach();
-
-//             //while(!(senzor_data.m1.RangeDMaxMilliMeter >0 && senzor_data.m2.RangeDMaxMilliMeter> 0)) delay(50);
-//             Serial.println("---- START ----");
-//             break;
-//         }
-//         delay(200);
-//     }
-
-
-//     // while(1)
-//     // {
-//     //     Serial.printf("%d",man.buttons().right());
-//     //     if(man.buttons().right())
-//     //     {
-//     //         Serial.println("*******************************");
-//     //         delay(1000);
-//     //         //turn(180,10000);
-//     //         //man.motor(rb::MotorId::M1).power(16000);
-//     //         //jizda_vpred(50,20000);
-//     //         //stena();
-//     //         servo_dance();
-//     //     }
-//     //     delay(200);
-//     // }
-
-// }
-
-    
-        
-
-        //turn(1,1);
-        //start_time=millis();
         Serial.println("START");
         //rkConfig cfg;
         //rkSetup(cfg);
@@ -1205,23 +1124,8 @@ void setup() {
         delay(200);
         
         uart_set_up();
-        
-        
-        //delay(1000);
-        
-        
-        //lox.begin();
+
         delay(200);
-        
-        //writeRegister(VL53L0X_DEFAULT_ADDR, I2C_SLAVE_DEVICE_ADDRESS, VL53L0X_NEW_ADDR);
-        //delay(200);
-        
-        // Inicializace senzoru na nové adrese
-        
-        // Serial.println("Senzor VL53L0X uspesne inicializovan.");
-        // tcs.begin(0x29);
-        
-        //uart_thread_function();
         
         std::thread uart_thread (get_data, uart_data);
         uart_thread.detach();
@@ -1237,63 +1141,10 @@ void setup() {
         delay(1000);
         Serial.println("start");
 
-
-
-
-    //servo_dance();
-
-    // while(1)
-    // {
-    //     Serial.printf("%d",man.buttons().right());
-    //     if(man.buttons().right())
-    //     {
-    //         Serial.println("*******************************");
-    //         delay(1000);
-    //         //turn(180,10000);
-    //         //man.motor(rb::MotorId::M1).power(16000);
-    //         //jizda_vpred(50,20000);
-    //         //stena();
-    //         servo_dance();
-    //     }
-    //     delay(200);
-    // }
-
 }
 void loop()
 {
-    // auto& man = rb::Manager::get(); // get manager instance as singleton
-    // while(1)
-    // {
-    //     Serial.printf("%d",man.buttons().right());
-    //     if(man.buttons().right())
-    //     {
-    //         Serial.println("*******************************");
-    //         delay(1000);
-    //         //turn(180,10000);
-    //         //man.motor(rb::MotorId::M1).power(16000);
-    //         //jizda_vpred(50,20000);
-    //         //stena();
-    //         servo_dance();
-    //     }
-    //     delay(200);
-    // }
-    // while(1)
-    // {
-   // if (man.buttons().down()) {
-    //    break;
-   // }
-    // delay(100);
-   // }
-//   cesta_zpet();
-//    delay(10000);
-//    hledani_vpred(50,20000);
-//    hledani_toceni_180();
-//     if(millis()-start_time >=end_time)
-//     {
-//         cesta_zpet();
 
-//     }
-    //cervena();
     Serial.printf("red: %f, green: %f, blue: %f",senzor_data.r,senzor_data.g,senzor_data.b);
     Serial.print("######################\n");
     if(senzor_data.r >100) side =1;

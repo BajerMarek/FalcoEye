@@ -10,7 +10,7 @@ void setup() {
     auto& man = rb::Manager::get(); // get manager instance as singleton
     man.install(); // install manager
 
-    const int servoId = 1; // servo id
+    const int servoId = 0; // servo id
     const float maxRange = 2.0f; // my servo accepts values from -2 to 2 (Servo SG-90 9g - range 0-180°)
 
     while (true) {

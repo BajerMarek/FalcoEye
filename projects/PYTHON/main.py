@@ -16,6 +16,10 @@ def gen_images():
 
     # for all images in the source data
     while len(raw_data) >= IMG_SIZE:
+        if(img_index == 15):
+            print(raw_data[0:3])
+            print(raw_data[3:6])
+            print(raw_data[6:9])
         # create one image
         img = Image.frombytes("RGB", (IMG_WIDTH, IMG_HEIGHT), raw_data[0:IMG_SIZE])
         # save to the disk

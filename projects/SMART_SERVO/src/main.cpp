@@ -1,4 +1,5 @@
-//#include <Arduino.h>
+#include "rbjson.h"
+#include <Arduino.h>
 #include "robotka.h"
 
 //    https://github.com/RoboticsBrno/RB3204-RBCX-Robotka-library/archive/v1.3.15.zip
@@ -7,7 +8,8 @@
 //#include"RBCXManager.h"
 #include "SmartServoBus.hpp"
 
-using namespace lx16a; // aby nebylo třeba to psát všude
+
+//using namespace lx16a; // aby nebylo třeba to psát všude
 // Funkce pro inicializaci serva
 // id: ID serva (0–253)
 // low, high: Dolní a horní limit úhlu serva v ° (výchozí 0 a 240)
@@ -57,7 +59,7 @@ void setup() {
     auto &bus = rkSmartServoBus(1);
     ch_s_init(bus,0);
    // ch_s_init(bus,1);
-    ch_s_move(bus,0,50,100);        //! 50 zavřeno - 30 otevřeno - 240 vyhozeno + 0 vzadu 1 vepředu
+    ch_s_move(bus,0,0,100);        //! 50 zavřeno - 30 otevřeno - 240 vyhozeno + 0 vzadu 1 vepředu
     Serial.println("First done");
     delay(10000);
    // ch_s_move(bus,1,90,100);

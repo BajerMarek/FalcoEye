@@ -120,7 +120,7 @@ void jizda_vpred(float cil,int rychlost)
 
    //M4 má zápornou hodnotu
     int M1_pos = 0, M4_pos = 0, odhylaka = 0, integral = 0, last_odchylka =0, rampa_vzdalenost = 640; //800cm součet dvou ramp 
-    int P =200; 
+    int P =100; 
     float I = 0.001,D =0.5;
    // float D =0.5;
     int target = rychlost;
@@ -155,7 +155,7 @@ void jizda_vpred(float cil,int rychlost)
         odhylaka = M1_pos-M4_pos;   // otoceni 1 a 4
         integral += odhylaka; 
 
-        man.motor(rb::MotorId::M1).power(target+odhylaka*P+(odhylaka-last_odchylka)*D);
+        man.motor(rb::MotorId::M1).power(target+odhylaka*P+integral*I+(odhylaka-last_odchylka)*D);
         man.motor(rb::MotorId::M4).power(target*-1);// i míň se to kvedla 50 -55 je ok  bez derivace )poslední čast na 2,5 m 3cm odchylka
         //! získá encodery z motoru
         man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor& info) {
@@ -234,13 +234,15 @@ double radToDeg(double rad) {
     return rad * 180.0 / M_PI;
 }
 //puk byl spatřen a pokd není ve středu robot se bude točit kolem do kola dokuďn nebude uprostřed
-void jedu_pro_puk(bool get_back = false,int distance_traveled =0,float angle = 0)
+bool jedu_pro_puk(bool get_back = false,int distance_traveled =0,float angle = 0,int direction =0)
 {
     if(stopper) STOP();
      Serial.println("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
     auto& man = rb::Manager::get(); // vytvoří referenci na man class
     man.motor(rb::MotorId::M1).power(0);
     man.motor(rb::MotorId::M4).power(0);
+    man.motor(rb::MotorId::M1).setCurrentPosition(0);
+    man.motor(rb::MotorId::M4).setCurrentPosition(0);
     int x1 =1;
     int x2 =1;
     int center = 125;
@@ -249,13 +251,14 @@ void jedu_pro_puk(bool get_back = false,int distance_traveled =0,float angle = 0
     int M1_pos = 0; //součet dvou ramp 
     int last_direction = 1; //! 1 =  levo -1 =pravo
 
-    angle = 0;
+    //angle = 0;
     while(!(object_center < 195 && object_center > 140))
     {
         if(stopper) STOP();
         if(uart_data.header == 0)
         {
             zacatek_time +=10;
+            printf("cas_cekani : %d\n",zacatek_time);
             if(zacatek_time>=1500) break;
         }
         
@@ -302,7 +305,7 @@ void jedu_pro_puk(bool get_back = false,int distance_traveled =0,float angle = 0
         });
         delay(5);
     }
-    if(zacatek_time<1500)
+    if(M1_pos>0)
     {
 
         Serial.println("##### MAM TO #####");
@@ -312,24 +315,29 @@ void jedu_pro_puk(bool get_back = false,int distance_traveled =0,float angle = 0
         delay(500);
         man.stupidServo(0).setPosition(0); 
         delay(500);
-
+        if (get_back == false) return true;
         if(get_back==true)
         {
-
-            angle = angle + abs((M1_pos*360)/(3.7*PI*roztec));
+            man.motor(rb::MotorId::M1).power(0);
+            man.motor(rb::MotorId::M4).power(0);
+            man.motor(rb::MotorId::M1).setCurrentPosition(0);
+            man.motor(rb::MotorId::M4).setCurrentPosition(0);
+            Serial.printf("##### angle = %f #####",angle);
+            angle = -90 + direction*(angle + (M1_pos*360)/(3.7*PI*roztec));
+            
             Serial.printf("##### M1 = %d #####",M1_pos);
             Serial.printf("##### angle = %f #####",angle);
             toceni_dle_uhlu(180,9000);
-            jizda_vpred(200,20000);
-            if(angle>15) toceni_dle_uhlu(last_direction*angle,9000);
-            jizda_vpred(distance_traveled,20000);
-            toceni_dle_uhlu(180,9000);
+            jizda_vpred(200,8000);
+            toceni_dle_uhlu(angle,9000);
+            jizda_vpred(200,8000);
+            toceni_dle_uhlu(175,9000);
             Serial.println("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
-
+            return true;
         }
     }
     uart_data = {0};
-
+    return false;
     //!jinak konec
 }
 //! m1 - de do boku
@@ -908,7 +916,7 @@ void set_up_peripherals()
     Serial.println("---- VSE OK ----");
 }
 //Hledání během otáčení
-void hledani_90(int rychlost)
+int hledani_90(int rychlost)
 {
     Serial.printf("--------------------------------------------------------------------");
     if(stopper) STOP();
@@ -916,10 +924,12 @@ void hledani_90(int rychlost)
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
     //m1 musí být -
-    int angle = 90;    //!90° do prava
+    float prevod_angle = 3.7;
+    float angle = 90;    //!90° do prava
     int M4_pos = 0, M1_pos = 0;// last_odchylka =0, rampa_vzdalenost = 640;
     //int P =110, I = 0.01, D =0.5; 
     float cil = ((PI*roztec)/(360/angle))*3.7;    // roztec a kolo jsou v mm
+    angle =0;
     while((abs(M1_pos)<abs(cil))||(abs(M4_pos)<abs(cil)))   //! 4000 převod na metry
     {
         if(vidim_puk(side,uart_data))
@@ -949,17 +959,19 @@ void hledani_90(int rychlost)
         delay(10);
         //last_odchylka = odhylaka;
      }
+     angle = (M1_pos*360)/(prevod_angle*PI*roztec);
+     Serial.printf("##### angle = %f #####",angle);
+    if(jedu_pro_puk(true,200,angle,-1)) return 1;
     man.motor(rb::MotorId::M1).power(0);
     man.motor(rb::MotorId::M4).power(0);
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
-    //delay(500);
-    jedu_pro_puk();
+    delay(500);
     M1_pos =0;
     M4_pos =0;
 
         while((abs(M1_pos)<abs(cil*2))||(abs(M4_pos)<abs(cil*2)))   //! 4000 převod na metry
-    {
+        {
         if(vidim_puk(side,uart_data))
         {
 
@@ -989,10 +1001,13 @@ void hledani_90(int rychlost)
      }
     man.motor(rb::MotorId::M1).power(0);
     man.motor(rb::MotorId::M4).power(0);
+    if(abs((M1_pos*360)/(prevod_angle*PI*roztec))>0) angle = abs((M1_pos*360)/(prevod_angle*PI*roztec));
+    Serial.printf("##### angle = %f #####",angle);
+    if(angle>90 ) if(jedu_pro_puk(true,200,angle-45,1)) return 1;
+    else if(jedu_pro_puk(true,200,angle,1)) return 1;
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
     delay(500);
-    jedu_pro_puk();
     M1_pos =0;
     M4_pos =0;
         while((abs(M1_pos)<abs(cil))||(abs(M4_pos)<abs(cil)))   //! 4000 převod na metry
@@ -1026,11 +1041,13 @@ void hledani_90(int rychlost)
      }
     man.motor(rb::MotorId::M1).power(0);
     man.motor(rb::MotorId::M4).power(0);
+    if(abs((M1_pos*360)/(prevod_angle*PI*roztec))>0) angle = abs((M1_pos*360)/(prevod_angle*PI*roztec));
+    Serial.printf("##### angle = %f #####",angle);
+    if(jedu_pro_puk(true,200,angle,-1)) return 1;
     man.motor(rb::MotorId::M1).setCurrentPosition(0);
     man.motor(rb::MotorId::M4).setCurrentPosition(0);
     //delay(500);
-    jedu_pro_puk();
-   
+    return 0;
 }
         
 //kod na homologaci
@@ -1169,8 +1186,9 @@ void loop()
     //homologace();
     //jizda_vpred(400,20000);
    // jedu_pro_puk();
-    hledani_vpred(400,8000);
-    //hledani_90(6500);
+    //jizda_vpred(200,8000);
+    hledani_vpred(200,8000);
+    hledani_90(7000);
     delay(1000000);
 
 }

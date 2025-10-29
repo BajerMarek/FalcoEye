@@ -70,8 +70,8 @@ void toceni_dle_uhlu(int angle, int rychlost)
 
     int M1_pos = 0, M4_pos = 0, odchylka = 0, integral = 0, last_odchylka = 0; //  rampa_vzdalenost = 640; 
     int M1_pred = 0, M4_pred = 0;
-    float P = 0.5;
-    float I = 0.0001, D = 0.5;
+    float P = 2;
+    float I = 0.001, D = 0.75;
     // int P =110, I = 0.01, D =0.5;
     int smer = 1;
     int ramp_distance = 0, a = 2000;
@@ -94,7 +94,7 @@ void toceni_dle_uhlu(int angle, int rychlost)
     // std::cout<< cil <<std::endl;
     // std::cout<< M4_pred<<" | "<<M1_pred <<std::endl;
     // std::cout<< cil+M4_pred<<"<-M4 | M1->"<<cil + M1_pred <<std::endl;
-    for (int i = 0; i < rychlost; i += a)
+    for (int i = 0; i < rychlost; i += 2000)
     {
         if (stopper)
             STOP();
@@ -103,7 +103,7 @@ void toceni_dle_uhlu(int angle, int rychlost)
 
         man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor &info)
                                                { M1_pos = info.position(); });
-        odchylka = M1_pos + M4_pos; // otoceni 1 a 4
+        odchylka = M1_pos + M4_pos; //!odchylka = (M1_pos-M1_pred) + (M4_pos-M4_pred);
         integral += odchylka;
 
 
@@ -116,8 +116,8 @@ void toceni_dle_uhlu(int angle, int rychlost)
 
         delay(20);
     }
-    ramp_distance = abs(M1_pos - M1_pred);
-    while ((abs(M1_pos - M1_pred) < cil) || (abs(M4_pos - M4_pred) < cil)) //! odstranění cil - ramp_distance
+    ramp_distance = M1_pos - M1_pred;
+    while ((abs(M1_pos - M1_pred) < cil-ramp_distance) || (abs(M4_pos - M4_pred) < cil-ramp_distance)) //! odstranění cil - ramp_distance
     {
         man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor &info)
                                                { M1_pos = info.position(); });
@@ -129,12 +129,12 @@ void toceni_dle_uhlu(int angle, int rychlost)
         integral += odchylka;
         // man.motor(rb::MotorId::M1).setCurrentPosition(0);
         // man.motor(rb::MotorId::M4).setCurrentPosition(0);
-        if ((abs(M1_pred - M1_pos) <= cil))//! odstranění cil - ramp_distance
+        if ((abs(M1_pred - M1_pos) <= cil-ramp_distance))//! odstranění cil - ramp_distance
         {
             man.motor(rb::MotorId::M1).power(smer * rychlost + odchylka * P + integral * I + (odchylka - last_odchylka) * D);
         }
         else man.motor(rb::MotorId::M1).power(0);
-        if ((abs(M4_pred - M4_pos) <= cil))//! odstranění cil - ramp_distance
+        if ((abs(M4_pred - M4_pos) <= cil-ramp_distance))//! odstranění cil - ramp_distance
         {
             man.motor(rb::MotorId::M4).power(smer * rychlost + odchylka * P + integral * I + (odchylka - last_odchylka) * D); // i míň se to kvedla 50 -55 je ok  bez derivace )poslední čast na 2,5 m 3cm odchylka
         }
@@ -153,25 +153,25 @@ void toceni_dle_uhlu(int angle, int rychlost)
     //! zpomalovaní
     // for (int i = rychlost; i >= 0; i -= a)
     // {
-    //     if ((i - a) < 0)
-    //         break;
-    //     odchylka = abs(M1_pos) - abs(M4_pos);
-    //     if (stopper)
+    //    if (stopper)
     //         STOP();
-    //     Serial.printf("##### i+odchylka*P = %d | a = %d | M1_pos = %d | M4_pos = %d #####\n", i + odchylka * P, a, M1_pos, M4_pos);
-    //     // odchylka = M4_pos-M1_pos;
-
     //     man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor &info)
     //                                            { M4_pos = -info.position(); });
 
     //     man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor &info)
     //                                            { M1_pos = info.position(); });
+    //     odchylka = M1_pos + M4_pos; // otoceni 1 a 4
+    //     integral += odchylka;
 
-    //     man.motor(rb::MotorId::M1).power(smer * i + odchylka * P);
-    //     man.motor(rb::MotorId::M4).power(smer * i + odchylka * P);
-    //     delay(100);
-    //     // if(odchylka>1000) odchylka = 0;
-    //     // std::cout<<"I: "<<i<<std::endl;
+
+    //     man.motor(rb::MotorId::M1).power(i + odchylka * P + integral * I + (odchylka - last_odchylka) * D);
+    //     man.motor(rb::MotorId::M4).power(i + odchylka * P + integral * I + (odchylka - last_odchylka) * D);
+    //     Serial.printf("##### i+odchylka*P = %d | a = %d | M1_pos = %d | M4_pos = %d #####\n", i + odchylka * P, a, M1_pos, M4_pos);
+    //     last_odchylka = odchylka;
+    //     if (integral > 1000) integral = 1000;
+    //     if (integral < -1000) integral = -1000;
+
+    //     delay(20);
     // }
 
     man.motor(rb::MotorId::M1).power(0);
@@ -189,7 +189,7 @@ void jizda_vpred(float cil, int rychlost)
     // M4 má zápornou hodnotu
     int M1_pos = 0, M4_pos = 0, odchylka = 0, integral = 0, last_odchylka = 0, rampa_vzdalenost = 640; // 800cm součet dvou ramp
     int M1_pred = 0, M4_pred = 0;
-    int P = 5;
+    float P = 5;
     float I = 0.0001, D = 1;
     // float D =0.5;
     int target = rychlost;
@@ -198,35 +198,41 @@ void jizda_vpred(float cil, int rychlost)
     cil = cil * 3.7;
 
     man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor &info)
-                                           { M4_pred = -info.position(); });
+                                           { M4_pred = info.position(); });
     man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor &info)
-                                           { M1_pred = info.position(); });
+                                           { M1_pred = -info.position(); });
 
     //! zrychlení - rampa
-    for (int i = 0; i + odchylka * P + integral * I + (odchylka - last_odchylka) * D < target; i += a)
+    for (int i = 0; i < target; i += 2000)
     {
         if (stopper)
+        {
             STOP();
+
+        }
             man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor &info)
-            { M4_pos = -info.position(); });
+            { M4_pos = info.position(); });
             
             man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor &info)
-            { M1_pos = info.position(); });
+            { M1_pos = -info.position(); });
             
             
-            odchylka = abs(M1_pos - M4_pos); // otoceni 1 a 4
+            odchylka = M1_pos - M4_pos; // otoceni 1 a 4
             integral += odchylka;
 
         man.motor(rb::MotorId::M1).power(i + odchylka * P + integral * I + (odchylka - last_odchylka) * D);
         man.motor(rb::MotorId::M4).power(-i  - odchylka * P - integral * I - (odchylka - last_odchylka) * D);
         Serial.printf("##### i+odchylka*P = %d | a = %d | M1_pos = %d | M4_pos = %d #####\n", i + odchylka * P, a, M1_pos, M4_pos);
 
-        delay(100);
+        delay(20);
+        if (integral > 1000) integral = 1000;
+        if (integral < -1000) integral = -1000;
         last_odchylka = odchylka;
         //! musím zjistit jakou vzdálenost tímto ujedu nasledně ji z dvojnasobit a odečíst do požadované vzdálenosti
     }
-    ramp_distance = abs(M1_pos - M1_pred);
+    ramp_distance = M1_pos - M1_pred;
     integral = 0; // ###
+    last_odchylka=0;
     //         man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor& info) {
     //     M4_pred = -info.position();
     // });
@@ -238,60 +244,69 @@ void jizda_vpred(float cil, int rychlost)
 
     Serial.printf("##### cil+M1_pred = %f #####\n", cil + M1_pred - ramp_distance);
     Serial.printf("#####  M1_pred = %d | M4_pred = %d #####\n", M1_pred, M4_pred);
-    while ((abs(M1_pos - M1_pred) < abs(abs(cil) - ramp_distance)) || (abs(M4_pos - M4_pred) < abs(abs(cil) -ramp_distance))) //! Provedl jsem upravu od funkčního originalu odstarnil jsem + Mn_pred od cíle
+    while (((M1_pos - M1_pred) < cil - ramp_distance) || ((M4_pos - M4_pred) < cil -ramp_distance)) //! Provedl jsem upravu od funkčního originalu odstarnil jsem + Mn_pred od cíle
     {
         if (stopper)
+        {
             STOP();
-        odchylka = abs(M1_pos - M4_pos); // otoceni 1 a 4
+
+        }
+
+        man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor &info)
+                                               { M4_pos = info.position(); });
+
+        man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor &info)
+                                               { M1_pos = -info.position(); });
+        delay(10);
+        odchylka = M1_pos - M4_pos; // otoceni 1 a 4
         integral += odchylka;
 
-        if ((abs(M1_pos - M1_pred) < abs(abs(cil) - ramp_distance)))
+        if ((M1_pos - M1_pred) < cil - ramp_distance-100)
             man.motor(rb::MotorId::M1).power(target + odchylka * P + integral * I + (odchylka - last_odchylka) * D);
         else{
             man.motor(rb::MotorId::M1).power(0);
         }
-        if ((abs(M4_pos - M4_pred) < abs(abs(cil) - ramp_distance)))
+        if ((M4_pos - M4_pred) < cil - ramp_distance-100)
             man.motor(rb::MotorId::M4).power(-target - odchylka * P - integral * I - (odchylka - last_odchylka) * D); // i míň se to kvedla 50 -55 je ok  bez derivace )poslední čast na 2,5 m 3cm odchylka
                                                                                                                       //! získá encodery z motoru
         else{
             man.motor(rb::MotorId::M4).power(0);
         }
-        man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor &info)
-                                               { M4_pos = -info.position(); });
 
-        man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor &info)
-                                               { M1_pos = info.position(); });
-
-        Serial.printf("M1_pos = %d | M4_pos = %d | speed = %f | M1_pos-M1_pred = %d | M1_pred = %d | M4_pos-M4_pred = %d | M4_pred = %d | abs(abs(cil) - ramp_distance) = %f\n", M1_pos, M4_pos, target + odchylka * P + integral * I + (odchylka - last_odchylka) * D, M1_pos - M1_pred, M1_pred, M4_pos - M4_pred, M4_pred, abs(abs(cil) - ramp_distance));
+        Serial.printf("M1_pos = %d | M4_pos = %d | speed = %f | M1_pos-M1_pred = %d | M1_pred = %d | M4_pos-M4_pred = %d | M4_pred = %d | cil - ramp_distance = %f\n", M1_pos, M4_pos, target + odchylka * P + integral * I + (odchylka - last_odchylka) * D, M1_pos - M1_pred, M1_pred, M4_pos - M4_pred, M4_pred, cil - ramp_distance);
         delay(10);
         // std::cout<<"M1: "<<M1_pos<<" M4: "<<M4_pos<<std::endl;
-
+        if (integral > 1000) integral = 1000;
+        if (integral < -1000) integral = -1000;
         last_odchylka = odchylka;
     }
 
     //! zpomalení
+    integral = 0; // ###
+    last_odchylka=0;
     a = 2000;
     for (int i = target; i + odchylka * P + integral * I + (odchylka - last_odchylka) * D > 0; i -= a )
     {
 
-        if (stopper)
+   if (stopper)
             STOP();
-                    odchylka = abs(M1_pos - M4_pos); // otoceni 1 a 4
-        integral += odchylka;
-        Serial.printf("##### speed = %d | a = %d | M1_pos = %d | M4_pos = %d #####\n", i + odchylka * P + integral * I + (odchylka - last_odchylka) * D, a, M1_pos, M4_pos);
-        // odchylka = M4_pos-M1_pos;
-
-        man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor &info)
-                                               { M4_pos = -info.position(); });
-
-        man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor &info)
-                                               { M1_pos = info.position(); });
+            man.motor(rb::MotorId::M4).requestInfo([&](rb::Motor &info)
+            { M4_pos = info.position(); });
+            
+            man.motor(rb::MotorId::M1).requestInfo([&](rb::Motor &info)
+            { M1_pos = -info.position(); });
+            
+            
+            odchylka = M1_pos - M4_pos; // otoceni 1 a 4
+            integral += odchylka;
 
         man.motor(rb::MotorId::M1).power(i + odchylka * P + integral * I + (odchylka - last_odchylka) * D);
-        man.motor(rb::MotorId::M4).power(-i - odchylka * P - integral * I - (odchylka - last_odchylka) * D);
-        delay(100);
-        // if(odchylka>1000) odchylka = 0;
-        // std::cout<<"I: "<<i<<std::endl;
+        man.motor(rb::MotorId::M4).power(-i  - odchylka * P - integral * I - (odchylka - last_odchylka) * D);
+        Serial.printf("##### i+odchylka*P = %d | a = %d | M1_pos = %d | M4_pos = %d #####\n", i + odchylka * P, a, M1_pos, M4_pos);
+
+        delay(20);
+        if (integral > 1000) integral = 1000;
+        if (integral < -1000) integral = -1000;
         last_odchylka = odchylka;
     }
     man.motor(rb::MotorId::M1).power(0);
@@ -1470,26 +1485,26 @@ void loop()
     //  toceni_dle_uhlu(-90,12000);
     // homologace();
 
-    //  jizda_vpred(200,15000);
-    //  Serial.print("-----------------------------------------  1 -----------------------------------------\n");
+     jizda_vpred(500,15000);
+     Serial.print("-----------------------------------------  1 -----------------------------------------\n");
 
-     toceni_dle_uhlu(180,10000);
+     toceni_dle_uhlu(180,15000);
      Serial.print("-----------------------------------------  2 -----------------------------------------\n");
 
-    //  jizda_vpred(200,15000);
-    //  Serial.print("-----------------------------------------  3 -----------------------------------------\n");
+     jizda_vpred(200,15000);
+     Serial.print("-----------------------------------------  3 -----------------------------------------\n");
 
-    //  toceni_dle_uhlu(180,12000);
-    //  Serial.print("-----------------------------------------  4 -----------------------------------------\n");
+     toceni_dle_uhlu(180,12000);
+     Serial.print("-----------------------------------------  4 -----------------------------------------\n");
 
-    //  jizda_vpred(200,15000);
-    //  Serial.print("-----------------------------------------  5 -----------------------------------------\n");
+     jizda_vpred(200,15000);
+     Serial.print("-----------------------------------------  5 -----------------------------------------\n");
 
-    //  toceni_dle_uhlu(180,12000);
-    //  Serial.print("-----------------------------------------  6 -----------------------------------------\n");
+     toceni_dle_uhlu(180,12000);
+     Serial.print("-----------------------------------------  6 -----------------------------------------\n");
 
-    //  jizda_vpred(200,15000);
-    //  Serial.print("-----------------------------------------  7 -----------------------------------------\n");
+     jizda_vpred(200,15000);
+     Serial.print("-----------------------------------------  7 -----------------------------------------\n");
 
 
     // Serial.print("######################\n");

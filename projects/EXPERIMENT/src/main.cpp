@@ -472,6 +472,12 @@ bool jedu_pro_puk(bool get_back = false, int distance_traveled = 0, float angle 
             Serial.printf("##### M1_pred_tocenim = %d #####\n", M1_pred_tocenim);
             Serial.printf("##### M1_pos-M1_pred_tocenim = %d #####\n", M1_pos - M1_pred_tocenim);
             direction = -1;
+            if((angle>90)&&(angle<180))
+            {
+                direction = 1;
+                angle = 180 - angle;
+            }
+
             angle = direction * (angle + (abs(M1_pos - M1_pred_tocenim) * 360) / (3.7 * PI * roztec)); //!- 90;
 
             Serial.printf("##### angle = %f #####\n", angle);
@@ -1672,11 +1678,9 @@ void loop()
     Serial.printf("red: %f, green: %f, blue: %f", senzor_data.r, senzor_data.g, senzor_data.b);
     // Serial.print("######################\n");
 
-      toceni_dle_uhlu(90,12000);
-      toceni_dle_uhlu(-90,12000);
-      delay(1000);
+    
     // homologace();
-    //jizda_vpred(500,15000);
+    jizda_vpred(200,15000);
     hledani_90(12000);
     //hledani_vpred(300,15000);
 

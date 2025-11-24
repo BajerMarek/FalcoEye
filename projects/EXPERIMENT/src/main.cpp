@@ -36,8 +36,8 @@ float enc_to_cm = 3.7; //! mm -
 int roztec = 175;      //! mm -  vzdalenost středů kol od sebe
 int r_kola = 36;       //! mm -  poloměr kola
 
-int side = 0; //! 0 = modra, 1 =cervena
-
+int side = 1; //! 0 = modra, 1 =cervena
+int puk_pocet =0;
 //! servo 1 - dveře servo 2 - kufr
 
 int stopper = 0;
@@ -462,6 +462,7 @@ bool jedu_pro_puk(bool get_back = false, int distance_traveled = 0, float angle 
         man.stupidServo(0).setPosition(0);
         delay(500);
         if (get_back == false)
+            //puk_pocet++;
             return true;
         if (get_back == true)
         {
@@ -490,9 +491,16 @@ bool jedu_pro_puk(bool get_back = false, int distance_traveled = 0, float angle 
 
             jizda_vpred(distance_traveled, 15000);
             delay(1000);
-
             toceni_dle_uhlu(180, 15000);
-            Serial.println("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
+
+            delay(1000);
+            man.stupidServo(0).setPosition(-0.925f);
+            jizda_vpred(200, 15000);
+
+            Serial.println("KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK");
+            Serial.printf("puk_pocet %d",puk_pocet);
+            puk_pocet++;
+            Serial.printf("puk_pocet %d",puk_pocet);
             return true;
         }
     }
@@ -622,15 +630,17 @@ void auto_servo()
     }
 }
 
-void hledani_vpred(int vzdalenost, int rychlost)
+int hledani_vpred(int vzdalenost, int rychlost)
 {
     if (stopper)
         STOP();
+    // if(puk_pocet>0)
+    //     return 2;
     auto &man = rb::Manager::get();                                            // vytvoří referenci na man class
     micros();                                                                  // update overflow
     int M1_pos = 0, M4_pos = 0, odchylka = 0, integral = 0, last_odchylka = 0, rampa_vzdalenost = 640; // 800cm součet dvou ramp
     int M1_pred = 0, M4_pred = 0;
-    float P = 75;
+    float P = 50;
     float I = 0.0001, D = 1;
     // float D =0.5;
     int target = rychlost;
@@ -777,8 +787,15 @@ void hledani_vpred(int vzdalenost, int rychlost)
     man.motor(rb::MotorId::M4).power(0);
     odchylka=0,integral=0,last_odchylka=0;
     jedu_pro_puk(true, M1_pos/3.7);
+    // if(jedu_pro_puk(true, M1_pos/3.7))
+    // {
+    //     Serial.println("MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM");
+    //     odchylka = 0, integral = 0;
+    //     return 2;
+    // }
     Serial.println("MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM");
     odchylka = 0, integral = 0;
+    return 1;
 }
 
 void get_data(UARTResult_t vstup)
@@ -1129,6 +1146,12 @@ void set_up_peripherals()
 
 int hledani_90(int rychlost)
 {
+    if(puk_pocet>0)
+    {
+            Serial.println("Hledání 90");
+            Serial.printf("puk_pocet %d",puk_pocet);        
+        return 1;
+    }
     int angle =90;
     bool puk_zpatren = false;
     int M1_pos = 0, M4_pos = 0, odchylka = 0, integral = 0, last_odchylka = 0; //  rampa_vzdalenost = 640; 
@@ -1678,10 +1701,14 @@ void loop()
     Serial.printf("red: %f, green: %f, blue: %f", senzor_data.r, senzor_data.g, senzor_data.b);
     // Serial.print("######################\n");
 
-    
+    toceni_dle_uhlu(90,15000);
+    toceni_dle_uhlu(-90,15000);
     // homologace();
-    jizda_vpred(200,15000);
+    hledani_vpred(200,15000);
+    
     hledani_90(12000);
+
+    
     //hledani_vpred(300,15000);
 
     // Serial.print("######################\n");
